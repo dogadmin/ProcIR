@@ -1002,9 +1002,14 @@ function getSelectedPath() {
   const e=getSelExec(); return e?{sha:e.SHA256,md5:e.MD5,path:e.Path,cmd:e.CommandLine,name:e.Path}:null;
 }
 
-function updateStats() {
+function countRiskLevels() {
   let c=0,h=0,m=0,s=0,l=0;
   allProc.forEach(r => { switch(r.RiskLevel){ case 'Critical':c++;break; case 'High':h++;break; case 'Medium':m++;break; case 'Suspicious':s++;break; default:l++; } });
+  return {c,h,m,s,l};
+}
+
+function updateStats() {
+  const {c,h,m,s,l} = countRiskLevels();
   document.getElementById('statsText').innerHTML =
     '<span class="critical">严重:'+c+'</span><span class="high">高危:'+h+'</span>'+
     '<span class="medium">中危:'+m+'</span><span class="suspicious">可疑:'+s+'</span>'+
@@ -1690,12 +1695,16 @@ function appendChatBubble(role, content, isLoading) {
 function buildScanDataFull() {
   let p = '以下是ProcIR扫描结果，请进行全面安全分析：\n\n';
 
-  let c=0,h=0,m=0,s=0;
-  allProc.forEach(r => { switch(r.RiskLevel){ case 'Critical':c++;break; case 'High':h++;break; case 'Medium':m++;break; case 'Suspicious':s++;break; } });
+  const {c,h,m,s} = countRiskLevels();
   p += '## 总体统计\n';
   p += '进程:' + allProc.length + ' (严重:'+c+' 高危:'+h+' 中危:'+m+' 可疑:'+s+') | 触发器:' + allTrig.length + ' | 行为链:' + allChain.length + ' | IOC:' + allIOC.length + ' | 事件:' + allEvt.length + '\n\n';
 
-  const highRisk = allProc.filter(r => r.RiskLevel==='Critical' || r.RiskLevel==='High');
+  // Single pass: classify processes into high/medium buckets
+  const highRisk = [], medRisk = [];
+  allProc.forEach(r => {
+    if (r.RiskLevel==='Critical' || r.RiskLevel==='High') highRisk.push(r);
+    else if (r.RiskLevel==='Medium') medRisk.push(r);
+  });
   if (highRisk.length > 0) {
     p += '## 高风险进程 (' + highRisk.length + '个)\n';
     highRisk.slice(0, 30).forEach(r => {
@@ -1711,7 +1720,6 @@ function buildScanDataFull() {
     p += '\n';
   }
 
-  const medRisk = allProc.filter(r => r.RiskLevel==='Medium');
   if (medRisk.length > 0) {
     p += '## 中危进程 (' + medRisk.length + '个)\n';
     medRisk.slice(0, 15).forEach(r => {
@@ -1816,8 +1824,7 @@ function buildScanDataFull() {
 }
 
 function buildScanDataBrief() {
-  let c=0,h=0,m=0,s=0;
-  allProc.forEach(r => { switch(r.RiskLevel){ case 'Critical':c++;break; case 'High':h++;break; case 'Medium':m++;break; case 'Suspicious':s++;break; } });
+  const {c,h,m,s} = countRiskLevels();
   let p = '扫描摘要 - 进程:' + allProc.length + '(严重:'+c+' 高危:'+h+' 中危:'+m+' 可疑:'+s+') 触发器:'+allTrig.length+' 行为链:'+allChain.length+' IOC:'+allIOC.length+'\n\n';
 
   const top = allProc.filter(r => r.RiskLevel==='Critical' || r.RiskLevel==='High').slice(0,10);
@@ -1871,8 +1878,9 @@ async function sendAIMessage() {
   btn.disabled = true; btn.textContent = '...';
   badge.textContent = '请求中'; badge.style.background = '#4a3000'; badge.style.color = '#ffd600';
 
-  // Build messages with system prompt
-  const messages = [{role: 'system', content: AI_SYSTEM_PROMPT}, ...aiChatHistory];
+  // Build messages with system prompt, cap context to last 30 messages
+  const ctx = aiChatHistory.length > 30 ? aiChatHistory.slice(-30) : aiChatHistory;
+  const messages = [{role: 'system', content: AI_SYSTEM_PROMPT}, ...ctx];
 
   try {
     const resp = await fetch('/api/ai/analyze', {
@@ -1915,12 +1923,10 @@ function clearAIChat() {
   aiChatHistory = [];
   aiTotalTokens = 0;
   const area = document.getElementById('aiChatArea');
-  area.innerHTML = '';
-  const welcome = document.createElement('div');
-  welcome.id = 'aiWelcome';
-  welcome.style.cssText = 'text-align:center;padding:40px 20px;color:#666';
-  welcome.innerHTML = '<div style="font-size:16px;margin-bottom:12px;color:#e94560">MiniMax AI 安全分析助手</div><div style="margin-bottom:8px">您可以直接输入问题，或点击下方「发送扫描数据」将扫描结果发送给AI分析</div><div style="font-size:11px;color:#555">支持多轮对话 | M2.5 / M2.7 模型</div>';
-  area.appendChild(welcome);
+  const welcome = document.getElementById('aiWelcome');
+  // Remove everything except the welcome element
+  while (area.firstChild) area.removeChild(area.firstChild);
+  if (welcome) { welcome.style.display = ''; area.appendChild(welcome); }
   document.getElementById('aiTokenCounter').textContent = '';
   const badge = document.getElementById('aiStatusBadge');
   badge.textContent = '就绪'; badge.style.background = '#333'; badge.style.color = '#888';
