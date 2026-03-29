@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"procir/internal/i18n"
 	"procir/internal/types"
 )
 
@@ -135,20 +136,20 @@ func DetectDirClusters(
 		// Scoring
 		if len(files) >= 3 {
 			cluster.Score = 25
-			cluster.Reasons = append(cluster.Reasons, "同目录3+个可疑文件")
+			cluster.Reasons = append(cluster.Reasons, i18n.T("tree_dir_3plus_suspicious"))
 		} else {
 			cluster.Score = 15
-			cluster.Reasons = append(cluster.Reasons, "同目录2个可疑文件")
+			cluster.Reasons = append(cluster.Reasons, i18n.T("tree_dir_2_suspicious"))
 		}
 
 		// Extra score for mixed types (exe+dll = classic sideload)
 		if typeSet["exe"] && typeSet["dll"] {
 			cluster.Score += 10
-			cluster.Reasons = append(cluster.Reasons, "exe+dll组合(疑似侧加载)")
+			cluster.Reasons = append(cluster.Reasons, i18n.T("tree_exe_dll_sideload"))
 		}
 		if typeSet["script"] {
 			cluster.Score += 5
-			cluster.Reasons = append(cluster.Reasons, "包含脚本文件")
+			cluster.Reasons = append(cluster.Reasons, i18n.T("tree_has_script"))
 		}
 
 		clusters = append(clusters, cluster)

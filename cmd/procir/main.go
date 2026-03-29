@@ -7,12 +7,13 @@ import (
 	"path/filepath"
 
 	"procir/internal/gui"
+	"procir/internal/i18n"
 	"procir/internal/scoring"
 	"procir/internal/yara"
 )
 
 func main() {
-	yaraPath := flag.String("yara", "", "YARA 规则文件或目录路径")
+	yaraPath := flag.String("yara", "", "YARA rules file or directory path")
 	flag.Parse()
 
 	// Auto-detect yara rules in same directory as executable
@@ -38,14 +39,14 @@ func main() {
 		engine := yara.NewEngine(*yaraPath)
 		if engine != nil && engine.Enabled() {
 			scoring.YaraEngine = engine
-			fmt.Printf("YARA 已加载: %d 条规则 (%s)\n", engine.RuleCount(), *yaraPath)
+			fmt.Printf(i18n.T("cli_yara_loaded")+"\n", engine.RuleCount(), *yaraPath)
 			if errs := engine.Errors(); len(errs) > 0 {
 				for _, e := range errs {
-					fmt.Printf("  警告: %s\n", e)
+					fmt.Printf("  "+i18n.T("cli_warning")+"\n", e)
 				}
 			}
 		} else {
-			fmt.Printf("YARA 规则加载失败: %s\n", *yaraPath)
+			fmt.Printf(i18n.T("cli_yara_fail")+"\n", *yaraPath)
 		}
 	}
 

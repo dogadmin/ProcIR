@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"procir/internal/context"
+	"procir/internal/i18n"
 	"procir/internal/types"
 )
 
@@ -192,13 +193,13 @@ func scoreFusion(obj *types.ExecutionObject) {
 	obj.FinalScore = obj.ExecutionScore + obj.TriggerScore + obj.ForensicScore
 
 	if obj.IsRunning {
-		obj.Reasons = append(obj.Reasons, "当前正在运行")
+		obj.Reasons = append(obj.Reasons, i18n.T("fus_running"))
 	}
 	if obj.TriggerCount > 0 {
-		obj.Reasons = append(obj.Reasons, fmt.Sprintf("存在%d个触发器(%s)", obj.TriggerCount, strings.Join(obj.TriggerTypes, "+")))
+		obj.Reasons = append(obj.Reasons, fmt.Sprintf(i18n.T("fus_triggers"), obj.TriggerCount, strings.Join(obj.TriggerTypes, "+")))
 	}
 	if obj.ForensicHits > 0 {
-		obj.Reasons = append(obj.Reasons, fmt.Sprintf("存在%d条取证痕迹", obj.ForensicHits))
+		obj.Reasons = append(obj.Reasons, fmt.Sprintf(i18n.T("fus_forensic_traces"), obj.ForensicHits))
 	}
 
 	// Copy process-level reasons
@@ -229,7 +230,7 @@ func scoreFusion(obj *types.ExecutionObject) {
 	if !obj.IsRunning && obj.TriggerScore >= 40 {
 		if overrideMin < 40 {
 			overrideMin = 40
-			obj.Reasons = append(obj.Reasons, "[融合] 未运行但触发器高危")
+			obj.Reasons = append(obj.Reasons, i18n.T("fus_not_running_high_trigger"))
 		}
 	}
 
@@ -241,7 +242,7 @@ func scoreFusion(obj *types.ExecutionObject) {
 			(strings.Contains(cmdLower, "-enc") || strings.Contains(cmdLower, "-encodedcommand")) {
 			if overrideMin < 80 {
 				overrideMin = 80
-				obj.Reasons = append(obj.Reasons, "[融合强规则] 触发器包含PowerShell编码执行")
+				obj.Reasons = append(obj.Reasons, i18n.T("fus_strong_ps_encoded"))
 			}
 		}
 	}
@@ -251,7 +252,7 @@ func scoreFusion(obj *types.ExecutionObject) {
 		for _, t := range obj.Triggers {
 			if t.Type == types.TriggerRunKey || t.Type == types.TriggerTask || t.Type == types.TriggerService {
 				obj.SynergyBonus += 20
-				obj.Reasons = append(obj.Reasons, "[融合] 用户目录+自动启动")
+				obj.Reasons = append(obj.Reasons, i18n.T("fus_userdir_autostart"))
 				break
 			}
 		}
@@ -260,7 +261,7 @@ func scoreFusion(obj *types.ExecutionObject) {
 	// Rule 4: Persistence + network (if running)
 	if obj.IsRunning && obj.NetworkObserved && obj.TriggerCount > 0 {
 		obj.SynergyBonus += 20
-		obj.Reasons = append(obj.Reasons, "[融合] 运行中+外联+持久化")
+		obj.Reasons = append(obj.Reasons, i18n.T("fus_running_network_persist"))
 	}
 
 	// Rule 5: Multiple trigger chains → Critical
@@ -271,11 +272,11 @@ func scoreFusion(obj *types.ExecutionObject) {
 	if len(uniqueTypes) >= 3 {
 		if overrideMin < 80 {
 			overrideMin = 80
-			obj.Reasons = append(obj.Reasons, "[融合强规则] 多触发链指向同一对象")
+			obj.Reasons = append(obj.Reasons, i18n.T("fus_strong_multi_trigger_chain"))
 		}
 	} else if len(uniqueTypes) >= 2 {
 		obj.SynergyBonus += 20
-		obj.Reasons = append(obj.Reasons, "[融合] 多触发器引用同一对象")
+		obj.Reasons = append(obj.Reasons, i18n.T("fus_multi_trigger_same_obj"))
 	}
 
 	// --- Forensic Fusion Rules ---
@@ -283,26 +284,26 @@ func scoreFusion(obj *types.ExecutionObject) {
 	// Rule 6: Not running but has execution history → +15
 	if !obj.IsRunning && obj.HasPrefetch {
 		obj.SynergyBonus += 15
-		obj.Reasons = append(obj.Reasons, "[融合] 未运行但有执行痕迹")
+		obj.Reasons = append(obj.Reasons, i18n.T("fus_not_running_has_trace"))
 	}
 
 	// Rule 7: Recent execution + persistence → +20
 	if obj.HasPrefetch && obj.TriggerCount > 0 {
 		obj.SynergyBonus += 20
-		obj.Reasons = append(obj.Reasons, "[融合] 历史执行+持久化")
+		obj.Reasons = append(obj.Reasons, i18n.T("fus_history_exec_persist"))
 	}
 
 	// Rule 8: Forensic hit + trigger → +20
 	if obj.HasEventLog && obj.TriggerCount > 0 {
 		obj.SynergyBonus += 20
-		obj.Reasons = append(obj.Reasons, "[融合] 日志记录+触发器")
+		obj.Reasons = append(obj.Reasons, i18n.T("fus_eventlog_trigger"))
 	}
 
 	// Rule 9: File disappeared but has forensic record → Suspicious
 	if !obj.Exists && obj.ForensicHits > 0 && !obj.IsRunning {
 		if overrideMin < 20 {
 			overrideMin = 20
-			obj.Reasons = append(obj.Reasons, "[融合] 文件已删除但有历史痕迹")
+			obj.Reasons = append(obj.Reasons, i18n.T("fus_file_deleted_has_trace"))
 		}
 	}
 
@@ -310,7 +311,7 @@ func scoreFusion(obj *types.ExecutionObject) {
 	if obj.SuspiciousModules >= 2 {
 		if overrideMin < 60 {
 			overrideMin = 60
-			obj.Reasons = append(obj.Reasons, "[融合强规则] 多个可疑加载模块")
+			obj.Reasons = append(obj.Reasons, i18n.T("fus_strong_suspicious_modules"))
 		}
 	}
 
@@ -338,7 +339,7 @@ func scoreFusion(obj *types.ExecutionObject) {
 	// Build source detail
 	var parts []string
 	if obj.IsRunning {
-		parts = append(parts, fmt.Sprintf("运行中(PID:%v)", obj.PIDs))
+		parts = append(parts, fmt.Sprintf(i18n.T("fus_running_pid"), obj.PIDs))
 	}
 	for _, t := range obj.Triggers {
 		parts = append(parts, t.Detail)

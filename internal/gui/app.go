@@ -18,6 +18,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"procir/internal/i18n"
 	"procir/internal/iocmonitor"
 	"procir/internal/memory"
 	"procir/internal/scoring"
@@ -63,6 +64,7 @@ func Run() {
 	mux.HandleFunc("/api/yara/scanone", handleYaraScanOne)
 	mux.HandleFunc("/api/yara/progress", handleYaraProgress)
 	mux.HandleFunc("/api/yara/results", handleYaraResults)
+	mux.HandleFunc("/api/lang", handleLang)
 	mux.HandleFunc("/api/ai/analyze", handleAIAnalyze)
 	mux.HandleFunc("/api/ai/claude", handleClaudeAnalyze)
 	mux.HandleFunc("/api/export", handleExport)
@@ -289,7 +291,7 @@ func handleYaraUpload(w http.ResponseWriter, r *http.Request) {
 
 	file, header, err := r.FormFile("rulefile")
 	if err != nil {
-		http.Error(w, "文件上传失败", 400)
+		http.Error(w, i18n.T("api_upload_fail"), 400)
 		return
 	}
 	defer file.Close()
@@ -301,7 +303,7 @@ func handleYaraUpload(w http.ResponseWriter, r *http.Request) {
 
 	dst, err := os.Create(dstPath)
 	if err != nil {
-		jsonErr(w, "创建临时文件失败")
+		jsonErr(w, i18n.T("api_tmpfile_fail"))
 		return
 	}
 	io.Copy(dst, file)
@@ -362,7 +364,7 @@ func handleYaraScanAll(w http.ResponseWriter, r *http.Request) {
 
 	engine := scoring.YaraEngine
 	if engine == nil || !engine.Enabled() {
-		jsonErr(w, "YARA未加载，请先加载规则")
+		jsonErr(w, i18n.T("api_yara_not_loaded"))
 		return
 	}
 
@@ -370,12 +372,12 @@ func handleYaraScanAll(w http.ResponseWriter, r *http.Request) {
 	result := lastResult
 	scanMu.Unlock()
 	if result == nil || len(result.ExecObjects) == 0 {
-		jsonErr(w, "请先执行系统扫描")
+		jsonErr(w, i18n.T("api_need_scan"))
 		return
 	}
 
 	if yaraRunning.Load() == 1 {
-		jsonErr(w, "YARA扫描正在进行中")
+		jsonErr(w, i18n.T("api_yara_in_progress"))
 		return
 	}
 
@@ -505,7 +507,7 @@ func handleYaraScanOne(w http.ResponseWriter, r *http.Request) {
 	}
 	engine := scoring.YaraEngine
 	if engine == nil || !engine.Enabled() {
-		jsonErr(w, "YARA未加载")
+		jsonErr(w, i18n.T("api_yara_short"))
 		return
 	}
 	hits := engine.ScanSingleFile(req.Path)
@@ -516,7 +518,7 @@ func handleYaraScanOne(w http.ResponseWriter, r *http.Request) {
 func loadYaraRules(path string) (int, error) {
 	engine := yara.NewEngine(path)
 	if engine == nil || !engine.Enabled() {
-		return 0, fmt.Errorf("加载失败: 没有有效规则")
+		return 0, fmt.Errorf(i18n.T("api_yara_not_loaded"))
 	}
 	scoring.YaraEngine = engine
 	return engine.RuleCount(), nil
@@ -584,12 +586,27 @@ func handleOpenDir(w http.ResponseWriter, r *http.Request) {
 		dir = dir[:idx]
 	}
 	if _, err := os.Stat(dir); err != nil {
-		jsonErr(w, "目录不存在")
+		jsonErr(w, i18n.T("api_dir_not_exist"))
 		return
 	}
 	exec.Command("explorer.exe", dir).Start()
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]any{"ok": true})
+}
+
+// --- Language Setting ---
+
+func handleLang(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "POST" {
+		var req struct {
+			Lang string `json:"lang"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err == nil {
+			i18n.SetLang(req.Lang)
+		}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{"lang": i18n.Lang()})
 }
 
 // --- AI Analysis API (MiniMax) ---
@@ -612,7 +629,7 @@ func handleAIAnalyze(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.APIKey == "" || req.Model == "" || len(req.Messages) == 0 {
-		jsonErr(w, "请填写API Key、选择模型并发送消息")
+		jsonErr(w, i18n.T("api_need_key_model_msg"))
 		return
 	}
 
@@ -625,13 +642,13 @@ func handleAIAnalyze(w http.ResponseWriter, r *http.Request) {
 
 	bodyJSON, err := json.Marshal(apiBody)
 	if err != nil {
-		jsonErr(w, "构建请求失败")
+		jsonErr(w, "Failed to build request")
 		return
 	}
 
 	apiReq, err := http.NewRequest("POST", "https://api.minimaxi.com/v1/chat/completions", bytes.NewReader(bodyJSON))
 	if err != nil {
-		jsonErr(w, "创建请求失败")
+		jsonErr(w, "Failed to create request")
 		return
 	}
 	apiReq.Header.Set("Content-Type", "application/json")
@@ -639,19 +656,19 @@ func handleAIAnalyze(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := aiClient.Do(apiReq)
 	if err != nil {
-		jsonErr(w, "请求MiniMax API失败: "+err.Error())
+		jsonErr(w, "MiniMax API failed: "+err.Error())
 		return
 	}
 	defer resp.Body.Close()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		jsonErr(w, "读取响应失败")
+		jsonErr(w, "Failed to read response")
 		return
 	}
 
 	if resp.StatusCode != 200 {
-		jsonErr(w, fmt.Sprintf("MiniMax API返回错误(%d): %s", resp.StatusCode, string(respBody)))
+		jsonErr(w, fmt.Sprintf("MiniMax API error (%d): %s", resp.StatusCode, string(respBody)))
 		return
 	}
 
@@ -680,7 +697,7 @@ func handleAIAnalyze(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if apiResp.BaseResp.StatusCode != 0 {
-		jsonErr(w, fmt.Sprintf("MiniMax API错误(%d): %s", apiResp.BaseResp.StatusCode, apiResp.BaseResp.StatusMsg))
+		jsonErr(w, fmt.Sprintf("MiniMax API error (%d): %s", apiResp.BaseResp.StatusCode, apiResp.BaseResp.StatusMsg))
 		return
 	}
 

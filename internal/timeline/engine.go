@@ -4,6 +4,7 @@ import (
 	"sort"
 	"strings"
 
+	"procir/internal/i18n"
 	"procir/internal/types"
 )
 
@@ -40,7 +41,7 @@ func Build(
 				Type:       "trigger",
 				ObjectPath: t.Path,
 				ObjectName: t.Name,
-				Detail:     "计划任务上次执行: " + t.Name,
+				Detail:     i18n.T("tl_task_last_exec") + t.Name,
 				Score:      t.Score,
 				Source:     string(t.Type),
 			})

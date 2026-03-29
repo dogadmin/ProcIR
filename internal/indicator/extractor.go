@@ -6,6 +6,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"procir/internal/i18n"
 	"procir/internal/types"
 )
 
@@ -46,7 +47,7 @@ func Extract(
 			continue
 		}
 		source := p.Name + " (PID:" + itoa(int(p.PID)) + ")"
-		extractFromText(p.CommandLine, source, "进程命令行", add)
+		extractFromText(p.CommandLine, source, i18n.T("ioc_proc_cmdline"), add)
 	}
 
 	// Scan triggers
@@ -55,7 +56,7 @@ func Extract(
 			continue
 		}
 		source := string(t.Type) + ":" + t.Name
-		extractFromText(t.CommandLine, source, "触发器", add)
+		extractFromText(t.CommandLine, source, i18n.T("ioc_trigger"), add)
 
 		// WMI-specific
 		if t.WMIConsumerCmd != "" {
@@ -69,7 +70,7 @@ func Extract(
 			continue
 		}
 		source := string(f.Source) + ":" + baseName(f.Path)
-		extractFromText(f.CommandLine, source, "取证记录", add)
+		extractFromText(f.CommandLine, source, i18n.T("ioc_forensic"), add)
 	}
 
 	return results
@@ -105,7 +106,7 @@ func extractFromText(text, source, context string, add func(string, string, stri
 				if len(preview) > 80 {
 					preview = preview[:80] + "..."
 				}
-				add("base64", b64[:40]+"...", source, "解码: "+preview)
+				add("base64", b64[:40]+"...", source, i18n.T("ioc_decoded")+preview)
 			} else {
 				add("base64", b64[:40]+"...", source, context)
 			}

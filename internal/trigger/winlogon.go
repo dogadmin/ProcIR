@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"procir/internal/i18n"
 	"procir/internal/types"
 
 	"golang.org/x/sys/windows/registry"
@@ -31,7 +32,7 @@ func collectWinlogon() []*types.TriggerEntry {
 				Name:        "Winlogon\\Shell",
 				Path:        extractExePath(shell),
 				CommandLine: shell,
-				Detail:      fmt.Sprintf("Winlogon Shell被修改: %s", shell),
+				Detail:      fmt.Sprintf(i18n.T("trig_winlogon_shell"), shell),
 			}
 			results = append(results, entry)
 		}
@@ -63,7 +64,7 @@ func collectWinlogon() []*types.TriggerEntry {
 					Name:        "Winlogon\\Userinit",
 					Path:        extractExePath(part),
 					CommandLine: part,
-					Detail:      fmt.Sprintf("Winlogon Userinit附加项: %s", part),
+					Detail:      fmt.Sprintf(i18n.T("trig_winlogon_userinit_a"), part),
 				}
 				results = append(results, entry)
 			}
@@ -75,7 +76,7 @@ func collectWinlogon() []*types.TriggerEntry {
 					Name:        "Winlogon\\Userinit",
 					Path:        extractExePath(userinit),
 					CommandLine: userinit,
-					Detail:      fmt.Sprintf("Winlogon Userinit被修改: %s", userinit),
+					Detail:      fmt.Sprintf(i18n.T("trig_winlogon_userinit_m"), userinit),
 				}
 				results = append(results, entry)
 			}

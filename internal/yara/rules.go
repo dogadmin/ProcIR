@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"strings"
 	"unicode/utf16"
+
+	"procir/internal/i18n"
 )
 
 // Rule represents a parsed YARA rule.
@@ -50,7 +52,7 @@ func LoadRules(path string) (*RuleSet, error) {
 
 	info, err := os.Stat(path)
 	if err != nil {
-		return nil, fmt.Errorf("规则路径不存在: %s", path)
+		return nil, fmt.Errorf(i18n.T("yara_path_not_exist")+": %s", path)
 	}
 
 	if info.IsDir() {
@@ -67,7 +69,7 @@ func LoadRules(path string) (*RuleSet, error) {
 			if ext == ".yar" || ext == ".yara" || ext == ".rule" {
 				data, err := os.ReadFile(filepath.Join(path, entry.Name()))
 				if err != nil {
-					rs.Errors = append(rs.Errors, fmt.Sprintf("读取失败 %s: %v", entry.Name(), err))
+					rs.Errors = append(rs.Errors, fmt.Sprintf(i18n.T("yara_read_fail")+" %s: %v", entry.Name(), err))
 					continue
 				}
 				rules, errs := parseRules(string(data))
@@ -86,7 +88,7 @@ func LoadRules(path string) (*RuleSet, error) {
 	}
 
 	if len(rs.Rules) == 0 && len(rs.Errors) > 0 {
-		return rs, fmt.Errorf("无有效规则: %s", strings.Join(rs.Errors, "; "))
+		return rs, fmt.Errorf(i18n.T("yara_no_valid_rules")+": %s", strings.Join(rs.Errors, "; "))
 	}
 
 	return rs, nil
@@ -153,7 +155,7 @@ func extractRule(source string) (*Rule, string, error) {
 	// Find rule name
 	start := strings.Index(source, "rule ")
 	if start < 0 {
-		return nil, source, fmt.Errorf("无法找到 rule 关键字")
+		return nil, source, fmt.Errorf("%s", i18n.T("yara_no_rule_keyword"))
 	}
 
 	afterRule := source[start+5:]
@@ -163,7 +165,7 @@ func extractRule(source string) (*Rule, string, error) {
 	// Get rule name (up to : or {)
 	nameEnd := strings.IndexAny(afterRule, ":{")
 	if nameEnd < 0 {
-		return nil, source, fmt.Errorf("规则语法错误: 缺少 { 或 :")
+		return nil, source, fmt.Errorf("%s", i18n.T("yara_syntax_error_brace"))
 	}
 
 	rule := &Rule{
@@ -177,7 +179,7 @@ func extractRule(source string) (*Rule, string, error) {
 	if rest[0] == ':' {
 		tagEnd := strings.Index(rest, "{")
 		if tagEnd < 0 {
-			return nil, source, fmt.Errorf("规则 %s: 缺少 {", rule.Name)
+			return nil, source, fmt.Errorf(i18n.T("yara_rule_missing_open")+" %s", rule.Name)
 		}
 		tagStr := strings.TrimSpace(rest[1:tagEnd])
 		for _, tag := range strings.Fields(tagStr) {
@@ -202,7 +204,7 @@ func extractRule(source string) (*Rule, string, error) {
 	}
 
 	if endIdx < 0 {
-		return nil, "", fmt.Errorf("规则 %s: 缺少闭合 }", rule.Name)
+		return nil, "", fmt.Errorf(i18n.T("yara_rule_missing_close")+" %s", rule.Name)
 	}
 
 	body := rest[1:endIdx] // content between { and }

@@ -4,6 +4,7 @@ import (
 	"strings"
 	"time"
 
+	"procir/internal/i18n"
 	"procir/internal/types"
 )
 
@@ -41,21 +42,21 @@ func scorePrefetch(e *types.ForensicEntry, _ string) {
 	// Check if exe name suggests user directory execution
 	// Prefetch doesn't store full path in filename, but unusual names are suspicious
 	e.Score += 5
-	e.Reasons = append(e.Reasons, "Prefetch历史记录")
+	e.Reasons = append(e.Reasons, i18n.T("fore_prefetch"))
 
 	// Recent execution (within 24h)
 	if isRecentTime(e.LastRunTime, 24*time.Hour) {
 		e.Score += 10
-		e.Reasons = append(e.Reasons, "最近24小时执行")
+		e.Reasons = append(e.Reasons, i18n.T("fore_24h_exec"))
 	} else if isRecentTime(e.LastRunTime, 72*time.Hour) {
 		e.Score += 5
-		e.Reasons = append(e.Reasons, "最近72小时执行")
+		e.Reasons = append(e.Reasons, i18n.T("fore_72h_exec"))
 	}
 
 	// LOLBin prefetch
 	if isLOLBinName(exeLower) {
 		e.Score += 5
-		e.Reasons = append(e.Reasons, "LOLBin执行痕迹")
+		e.Reasons = append(e.Reasons, i18n.T("fore_lolbin_trace"))
 	}
 
 	// Suspicious names (often malware patterns)
@@ -63,7 +64,7 @@ func scorePrefetch(e *types.ForensicEntry, _ string) {
 		strings.Contains(exeLower, "temp") || strings.HasPrefix(exeLower, "a.") ||
 		strings.HasPrefix(exeLower, "1.") || strings.HasPrefix(exeLower, "x.") {
 		e.Score += 15
-		e.Reasons = append(e.Reasons, "可疑文件名")
+		e.Reasons = append(e.Reasons, i18n.T("fore_susp_filename"))
 	}
 }
 
@@ -75,45 +76,45 @@ func scoreRecentFile(e *types.ForensicEntry, pathLower string) {
 	case "exe":
 		if isRecent24h {
 			e.Score += 20
-			e.Reasons = append(e.Reasons, "最近24小时新建/修改可执行文件")
+			e.Reasons = append(e.Reasons, i18n.T("fore_24h_exe"))
 		} else {
 			e.Score += 15
-			e.Reasons = append(e.Reasons, "最近72小时新建/修改可执行文件")
+			e.Reasons = append(e.Reasons, i18n.T("fore_72h_exe"))
 		}
 	case "dll":
 		if isRecent24h {
 			e.Score += 18
-			e.Reasons = append(e.Reasons, "最近24小时新建/修改DLL")
+			e.Reasons = append(e.Reasons, i18n.T("fore_24h_dll"))
 		} else {
 			e.Score += 12
-			e.Reasons = append(e.Reasons, "最近72小时新建/修改DLL")
+			e.Reasons = append(e.Reasons, i18n.T("fore_72h_dll"))
 		}
 	case "script":
 		if isRecent24h {
 			e.Score += 15
-			e.Reasons = append(e.Reasons, "最近24小时新建/修改脚本")
+			e.Reasons = append(e.Reasons, i18n.T("fore_24h_script"))
 		} else {
 			e.Score += 10
-			e.Reasons = append(e.Reasons, "最近72小时新建/修改脚本")
+			e.Reasons = append(e.Reasons, i18n.T("fore_72h_script"))
 		}
 	}
 
 	// User directory
 	if strings.HasPrefix(pathLower, `c:\users\`) {
 		e.Score += 10
-		e.Reasons = append(e.Reasons, "用户目录")
+		e.Reasons = append(e.Reasons, i18n.T("fore_user_dir"))
 	}
 
 	// Temp directory
 	if strings.Contains(pathLower, `\temp\`) || strings.Contains(pathLower, `\tmp\`) {
 		e.Score += 10
-		e.Reasons = append(e.Reasons, "临时目录")
+		e.Reasons = append(e.Reasons, i18n.T("fore_temp_dir"))
 	}
 
 	// ProgramData
 	if strings.HasPrefix(pathLower, `c:\programdata\`) {
 		e.Score += 5
-		e.Reasons = append(e.Reasons, "ProgramData目录")
+		e.Reasons = append(e.Reasons, i18n.T("fore_programdata_dir"))
 	}
 }
 
@@ -121,52 +122,52 @@ func scoreEventLog(e *types.ForensicEntry, pathLower, cmdLower string) {
 	switch e.EventID {
 	case 4688: // Process creation
 		e.Score += 10
-		e.Reasons = append(e.Reasons, "历史进程创建事件")
+		e.Reasons = append(e.Reasons, i18n.T("fore_hist_proc"))
 
 		if strings.Contains(pathLower, `\users\`) || strings.Contains(pathLower, `\temp\`) {
 			e.Score += 10
-			e.Reasons = append(e.Reasons, "用户/临时目录执行")
+			e.Reasons = append(e.Reasons, i18n.T("fore_hist_user_temp"))
 		}
 
 		if strings.Contains(cmdLower, "-enc") || strings.Contains(cmdLower, "frombase64") {
 			e.Score += 20
-			e.Reasons = append(e.Reasons, "命令行包含编码执行")
+			e.Reasons = append(e.Reasons, i18n.T("fore_hist_encoded"))
 		}
 
 		if strings.Contains(cmdLower, "downloadstring") || strings.Contains(cmdLower, "invoke-webrequest") ||
 			strings.Contains(cmdLower, "net.webclient") {
 			e.Score += 20
-			e.Reasons = append(e.Reasons, "命令行包含下载行为")
+			e.Reasons = append(e.Reasons, i18n.T("fore_hist_download"))
 		}
 
 	case 4104: // PowerShell script block
 		e.Score += 15
-		e.Reasons = append(e.Reasons, "可疑PowerShell脚本执行")
+		e.Reasons = append(e.Reasons, i18n.T("fore_hist_ps_susp"))
 
 		if strings.Contains(cmdLower, "invoke-mimikatz") || strings.Contains(cmdLower, "invoke-shellcode") ||
 			strings.Contains(cmdLower, "amsiutils") {
 			e.Score += 30
-			e.Reasons = append(e.Reasons, "高危PowerShell工具调用")
+			e.Reasons = append(e.Reasons, i18n.T("fore_hist_ps_tool"))
 		}
 
 	case 7045: // Service installation
 		e.Score += 15
-		e.Reasons = append(e.Reasons, "服务安装事件")
+		e.Reasons = append(e.Reasons, i18n.T("fore_hist_svc_install"))
 
 		if strings.Contains(pathLower, `\users\`) || strings.Contains(pathLower, `\temp\`) {
 			e.Score += 15
-			e.Reasons = append(e.Reasons, "服务指向用户/临时目录")
+			e.Reasons = append(e.Reasons, i18n.T("fore_hist_svc_user_temp"))
 		}
 
 		if strings.Contains(cmdLower, "powershell") || strings.Contains(cmdLower, "cmd") ||
 			strings.Contains(cmdLower, "mshta") {
 			e.Score += 15
-			e.Reasons = append(e.Reasons, "服务调用脚本引擎")
+			e.Reasons = append(e.Reasons, i18n.T("fore_hist_svc_script"))
 		}
 
 	case 4698: // Task creation
 		e.Score += 15
-		e.Reasons = append(e.Reasons, "任务创建事件")
+		e.Reasons = append(e.Reasons, i18n.T("fore_hist_task"))
 	}
 }
 
@@ -174,15 +175,15 @@ func scoreModule(e *types.ForensicEntry) {
 	// Base score from reasons already set in collector
 	for _, r := range e.Reasons {
 		switch r {
-		case "用户目录DLL":
+		case i18n.T("user_dir_dll"):
 			e.Score += 25
-		case "临时目录DLL":
+		case i18n.T("temp_dir_dll"):
 			e.Score += 25
-		case "系统DLL名伪装(非系统路径)":
+		case i18n.T("sysdll_masquerade"):
 			e.Score += 25
-		case "ProgramData目录DLL":
+		case i18n.T("programdata_exec"):
 			e.Score += 15
-		case "未签名":
+		case i18n.T("fore_unsigned"):
 			e.Score += 20
 		}
 	}

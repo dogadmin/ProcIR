@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"procir/internal/behavior"
+	"procir/internal/i18n"
 	ctx "procir/internal/context"
 	"procir/internal/event"
 	"procir/internal/file"
@@ -247,7 +248,7 @@ func applyChainScores(objects []*types.ExecutionObject, chains []*types.Behavior
 			key := strings.ToLower(objPath)
 			if obj, ok := pathMap[key]; ok {
 				obj.FinalScore += chain.PatternScore
-				obj.Reasons = append(obj.Reasons, "[行为链] "+chain.PatternName)
+				obj.Reasons = append(obj.Reasons, i18n.T("scan_behavior_chain")+chain.PatternName)
 				obj.RiskLevel = types.CalcRiskLevel(obj.FinalScore)
 			}
 		}
@@ -261,7 +262,7 @@ func applyDirClusterScores(objects []*types.ExecutionObject, clusters []*types.D
 		for _, cluster := range clusters {
 			if strings.HasPrefix(pathLower, cluster.Directory+`\`) || strings.HasPrefix(pathLower, cluster.Directory+"/") {
 				obj.FinalScore += cluster.Score
-				obj.Reasons = append(obj.Reasons, "[目录生态] "+strings.Join(cluster.Reasons, "+"))
+				obj.Reasons = append(obj.Reasons, i18n.T("scan_dir_cluster")+strings.Join(cluster.Reasons, "+"))
 				obj.RiskLevel = types.CalcRiskLevel(obj.FinalScore)
 				break
 			}
@@ -289,7 +290,7 @@ func extractEventIOCs(ev *types.EventEvidence) []*types.Indicator {
 	for _, match := range strings.Fields(cmd) {
 		if strings.HasPrefix(match, "http://") || strings.HasPrefix(match, "https://") {
 			results = append(results, &types.Indicator{
-				Type: "url", Value: match, SourceObject: source, Context: "事件日志",
+				Type: "url", Value: match, SourceObject: source, Context: i18n.T("scan_event_log"),
 			})
 		}
 	}

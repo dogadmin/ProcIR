@@ -3,6 +3,7 @@ package trigger
 import (
 	"fmt"
 
+	"procir/internal/i18n"
 	"procir/internal/types"
 
 	"golang.org/x/sys/windows/registry"
@@ -44,7 +45,7 @@ func collectIFEO() []*types.TriggerEntry {
 			Name:        name,
 			Path:        extractExePath(debugger),
 			CommandLine: debugger,
-			Detail:      fmt.Sprintf("IFEO劫持: %s → Debugger=%s", name, truncate(debugger, 100)),
+			Detail:      fmt.Sprintf(i18n.T("trig_ifeo_fmt"), name, truncate(debugger, 100)),
 		}
 
 		results = append(results, entry)

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"sync"
 
+	"procir/internal/i18n"
 	"procir/internal/types"
 )
 
@@ -88,7 +89,7 @@ func ApplyToObjects(analyses []*types.ModuleAnalysis, objects []*types.Execution
 				hasDLLHijack = true
 			}
 			for _, r := range a.Reasons {
-				obj.Reasons = appendUnique(obj.Reasons, "[模块] "+r)
+				obj.Reasons = appendUnique(obj.Reasons, i18n.T("mod_prefix")+r)
 			}
 		}
 
@@ -102,13 +103,13 @@ func ApplyToObjects(analyses []*types.ModuleAnalysis, objects []*types.Execution
 		// Synergy: DLL hijack + network
 		if hasDLLHijack && obj.NetworkObserved {
 			obj.FinalScore += 20
-			obj.Reasons = append(obj.Reasons, "[模块融合] DLL劫持+外联")
+			obj.Reasons = append(obj.Reasons, i18n.T("mod_fusion_hijack_net"))
 		}
 
 		// Synergy: DLL hijack + persistence
 		if hasDLLHijack && obj.TriggerCount > 0 {
 			obj.FinalScore += 20
-			obj.Reasons = append(obj.Reasons, "[模块融合] DLL劫持+持久化")
+			obj.Reasons = append(obj.Reasons, i18n.T("mod_fusion_hijack_persist"))
 		}
 
 		obj.RiskLevel = types.CalcRiskLevel(obj.FinalScore)

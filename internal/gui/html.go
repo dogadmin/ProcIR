@@ -821,6 +821,8 @@ function setLang(lang) {
   curLang = lang;
   localStorage.setItem('procir_lang', lang);
   updateLangMaps();
+  // Notify backend
+  fetch('/api/lang', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({lang:lang})}).catch(()=>{});
   const L = I18N[lang];
 
   // Page title
@@ -919,7 +921,10 @@ function toggleLang() {
 }
 
 // Apply saved language on load
-document.addEventListener('DOMContentLoaded', function() { if (curLang !== 'zh') setLang(curLang); });
+document.addEventListener('DOMContentLoaded', function() {
+  fetch('/api/lang', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({lang:curLang})}).catch(()=>{});
+  if (curLang !== 'zh') setLang(curLang);
+});
 
 let currentView = 'process';
 let allProc=[], allTrig=[], allExec=[], allFore=[], allTL=[], allChain=[], allIOC=[], allEvt=[], allMod=[];

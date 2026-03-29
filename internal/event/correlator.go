@@ -1,8 +1,10 @@
 package event
 
 import (
+	"fmt"
 	"strings"
 
+	"procir/internal/i18n"
 	"procir/internal/types"
 )
 
@@ -95,19 +97,19 @@ func Correlate(events []*types.EventEvidence, objects []*types.ExecutionObject) 
 		// Synergy: events + persistence
 		if obj.TriggerCount > 0 && obj.EventScore >= 15 {
 			obj.FinalScore += 20
-			obj.Reasons = append(obj.Reasons, "[事件融合] 事件证据+持久化")
+			obj.Reasons = append(obj.Reasons, i18n.T("evtfusion_persist"))
 		}
 
 		// Synergy: events + YARA
 		if obj.YaraMatched && obj.EventScore >= 15 {
 			obj.FinalScore += 20
-			obj.Reasons = append(obj.Reasons, "[事件融合] 事件证据+YARA命中")
+			obj.Reasons = append(obj.Reasons, i18n.T("evtfusion_yara"))
 		}
 
 		// Synergy: events + network
 		if obj.NetworkObserved && obj.EventScore >= 10 {
 			obj.FinalScore += 20
-			obj.Reasons = append(obj.Reasons, "[事件融合] 事件证据+外联")
+			obj.Reasons = append(obj.Reasons, i18n.T("evtfusion_net"))
 		}
 
 		// Synergy: multiple event types
@@ -117,7 +119,7 @@ func Correlate(events []*types.EventEvidence, objects []*types.ExecutionObject) 
 		}
 		if len(eventTypes) >= 3 {
 			obj.FinalScore += 15
-			obj.Reasons = append(obj.Reasons, "[事件融合] 多类型事件链")
+			obj.Reasons = append(obj.Reasons, i18n.T("evtfusion_multitype"))
 		}
 
 		obj.RiskLevel = types.CalcRiskLevel(obj.FinalScore)
@@ -126,9 +128,9 @@ func Correlate(events []*types.EventEvidence, objects []*types.ExecutionObject) 
 
 func eventSummary(obj *types.ExecutionObject) string {
 	if obj.EventCount == 1 {
-		return "[事件] 1条关联事件"
+		return i18n.T("evtfusion_1event")
 	}
-	return "[事件] " + itoa(obj.EventCount) + "条关联事件 (" + obj.FirstEventTime + " ~ " + obj.LastEventTime + ")"
+	return fmt.Sprintf(i18n.T("evtfusion_nevents"), obj.EventCount, obj.FirstEventTime, obj.LastEventTime)
 }
 
 func itoa(n int) string {

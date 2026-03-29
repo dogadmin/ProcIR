@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"procir/internal/i18n"
 	"procir/internal/types"
 )
 
@@ -17,8 +18,8 @@ func collectStartup() []*types.TriggerEntry {
 		path  string
 		label string
 	}{
-		{filepath.Join(os.Getenv("APPDATA"), `Microsoft\Windows\Start Menu\Programs\Startup`), "用户Startup"},
-		{`C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp`, "系统Startup"},
+		{filepath.Join(os.Getenv("APPDATA"), `Microsoft\Windows\Start Menu\Programs\Startup`), i18n.T("trig_startup_user")},
+		{`C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp`, i18n.T("trig_startup_system")},
 	}
 
 	for _, d := range dirs {
@@ -51,7 +52,7 @@ func collectStartup() []*types.TriggerEntry {
 			// For .lnk files, the actual target needs COM to resolve
 			// For now, record the .lnk path itself
 			if ext == ".lnk" {
-				te.Detail += " (快捷方式)"
+				te.Detail += i18n.T("trig_shortcut")
 			}
 
 			results = append(results, te)

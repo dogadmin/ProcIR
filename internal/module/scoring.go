@@ -1,8 +1,10 @@
 package module
 
 import (
+	"fmt"
 	"strings"
 
+	"procir/internal/i18n"
 	"procir/internal/types"
 )
 
@@ -16,19 +18,19 @@ func scoreModule(mi *types.ModuleInfo, ctx *types.ModuleAnalysis) {
 	// Unsigned DLL: +20
 	if !mi.Signed {
 		mi.Score += 20
-		mi.Reasons = append(mi.Reasons, "未签名DLL")
+		mi.Reasons = append(mi.Reasons, i18n.T("unsigned_dll"))
 	}
 
 	// User directory DLL: +25
 	if mi.IsUserPath {
 		mi.Score += 25
-		mi.Reasons = append(mi.Reasons, "用户目录DLL")
+		mi.Reasons = append(mi.Reasons, i18n.T("user_dir_dll"))
 	}
 
 	// Temp directory DLL: +25
 	if mi.IsTempPath {
 		mi.Score += 25
-		mi.Reasons = append(mi.Reasons, "临时目录DLL")
+		mi.Reasons = append(mi.Reasons, i18n.T("temp_dir_dll"))
 	}
 
 	// === Masquerade Detection ===
@@ -36,7 +38,7 @@ func scoreModule(mi *types.ModuleInfo, ctx *types.ModuleAnalysis) {
 	// System DLL name + non-system path: +30
 	if mi.IsSystemDLLName && !mi.IsSystemPath {
 		mi.Score += 30
-		mi.Reasons = append(mi.Reasons, "系统DLL名伪装(非系统路径)")
+		mi.Reasons = append(mi.Reasons, i18n.T("sysdll_masquerade"))
 		ctx.HasDLLHijack = true
 	}
 
@@ -45,14 +47,14 @@ func scoreModule(mi *types.ModuleInfo, ctx *types.ModuleAnalysis) {
 	// Rule 1: Signed EXE + unsigned user-dir DLL (白加黑): +40
 	if ctx.ExeSigned && !mi.Signed && mi.IsUserPath {
 		mi.Score += 40
-		mi.Reasons = append(mi.Reasons, "白加黑: 签名进程+用户目录未签名DLL")
+		mi.Reasons = append(mi.Reasons, i18n.T("dll_sideload"))
 		ctx.HasDLLHijack = true
 	}
 
 	// Rule 2: Same-directory DLL + unsigned (classic sideload): +35
 	if mi.IsSameDirAsExe && !mi.Signed {
 		mi.Score += 35
-		mi.Reasons = append(mi.Reasons, "同目录侧加载: EXE同目录未签名DLL")
+		mi.Reasons = append(mi.Reasons, i18n.T("same_dir_sideload"))
 		ctx.HasDLLHijack = true
 	}
 
@@ -60,14 +62,14 @@ func scoreModule(mi *types.ModuleInfo, ctx *types.ModuleAnalysis) {
 	exeLower := strings.ToLower(ctx.ExeName)
 	if systemProcesses[exeLower] && (mi.IsUserPath || mi.IsTempPath) {
 		mi.Score += 50
-		mi.Reasons = append(mi.Reasons, "系统进程加载用户目录DLL(极高危)")
+		mi.Reasons = append(mi.Reasons, i18n.T("sysproc_user_dll"))
 		ctx.HasDLLHijack = true
 	}
 
 	// Combo: system DLL name + same directory + unsigned → strongest signal
 	if mi.IsSystemDLLName && mi.IsSameDirAsExe && !mi.Signed {
 		mi.Score += 20 // bonus on top
-		mi.Reasons = append(mi.Reasons, "同目录+系统DLL名+未签名(经典白加黑)")
+		mi.Reasons = append(mi.Reasons, i18n.T("classic_sideload"))
 	}
 }
 
@@ -90,7 +92,7 @@ func aggregateScore(result *types.ModuleAnalysis) {
 	// Rule 4: Multiple suspicious modules: +20
 	if result.SuspiciousCount >= 2 {
 		result.Score += 20
-		result.Reasons = append(result.Reasons, "多个可疑模块("+itoa(result.SuspiciousCount)+"个)")
+		result.Reasons = append(result.Reasons, fmt.Sprintf(i18n.T("multi_susp_modules"), result.SuspiciousCount))
 	}
 
 	// Collect all reasons from suspicious modules

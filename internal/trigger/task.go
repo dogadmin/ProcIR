@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"procir/internal/i18n"
 	"procir/internal/types"
 )
 
@@ -75,7 +76,7 @@ func collectTasks() []*types.TriggerEntry {
 				Name:            taskName,
 				Path:            action.path,
 				CommandLine:     action.cmdline,
-				Detail:          fmt.Sprintf("计划任务: %s → %s", taskName, truncate(action.cmdline, 100)),
+				Detail:          fmt.Sprintf(i18n.T("trig_task_fmt"), taskName, truncate(action.cmdline, 100)),
 				TaskAuthor:      author,
 				TaskDescription: description,
 				TaskTriggerType: triggerType,

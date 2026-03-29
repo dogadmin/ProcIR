@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"procir/internal/context"
+	"procir/internal/i18n"
 	"procir/internal/types"
 )
 
@@ -56,28 +57,28 @@ func Apply(r *types.ProcessRecord) {
 	// 无签名: +12
 	if r.Path != "" && r.FileExists && !r.Signed {
 		r.RiskScore += 12
-		r.Reasons = append(r.Reasons, "未签名可执行文件")
+		r.Reasons = append(r.Reasons, i18n.T("unsigned_exe"))
 	}
 
 	// 签名无效: +20
 	if r.Signed && !r.SignValid {
 		r.RiskScore += 20
-		r.Reasons = append(r.Reasons, "签名无效或已过期")
+		r.Reasons = append(r.Reasons, i18n.T("invalid_signature"))
 	}
 
 	// 路径评分
 	switch pathCat {
 	case context.PathUserDir:
 		r.RiskScore += 20
-		r.Reasons = append(r.Reasons, "用户目录执行")
+		r.Reasons = append(r.Reasons, i18n.T("user_dir_exec"))
 		hasPathHit = true
 	case context.PathTemp:
 		r.RiskScore += 20
-		r.Reasons = append(r.Reasons, "临时目录执行")
+		r.Reasons = append(r.Reasons, i18n.T("temp_dir_exec"))
 		hasPathHit = true
 	case context.PathProgramData:
 		r.RiskScore += 15
-		r.Reasons = append(r.Reasons, "ProgramData目录执行")
+		r.Reasons = append(r.Reasons, i18n.T("programdata_exec"))
 		hasPathHit = true
 	case context.PathSystem32:
 		r.RiskScore -= 5
@@ -96,13 +97,13 @@ func Apply(r *types.ProcessRecord) {
 	// 系统文件名伪装: +30
 	if r.IsMasquerade {
 		r.RiskScore += 30
-		r.Reasons = append(r.Reasons, "系统文件名伪装（路径异常）")
+		r.Reasons = append(r.Reasons, i18n.T("masquerade_path"))
 	}
 
 	// OriginalFileName 不匹配: +10
 	if r.OriginalNameMismatch {
 		r.RiskScore += 10
-		r.Reasons = append(r.Reasons, "原始文件名不匹配")
+		r.Reasons = append(r.Reasons, i18n.T("masquerade_origname"))
 	}
 
 	// --- 1.3 父子进程异常 ---
@@ -110,21 +111,21 @@ func Apply(r *types.ProcessRecord) {
 	// Office → 脚本引擎: +25
 	if context.IsOfficeProcess(r.ParentName) && context.IsScriptEngine(r.Name) {
 		r.RiskScore += 25
-		r.Reasons = append(r.Reasons, "Office派生脚本引擎")
+		r.Reasons = append(r.Reasons, i18n.T("office_spawn_script"))
 		hasParentChainHit = true
 	}
 
 	// 浏览器 → 系统工具: +20
 	if context.IsBrowser(r.ParentName) && context.IsSystemTool(r.Name) {
 		r.RiskScore += 20
-		r.Reasons = append(r.Reasons, "浏览器派生系统工具")
+		r.Reasons = append(r.Reasons, i18n.T("browser_spawn_tool"))
 		hasParentChainHit = true
 	}
 
 	// 异常父进程链: +10
 	if r.AbnormalParentChain {
 		r.RiskScore += 10
-		r.Reasons = append(r.Reasons, "异常父进程链")
+		r.Reasons = append(r.Reasons, i18n.T("abnormal_parent"))
 		hasParentChainHit = true
 	}
 
@@ -139,7 +140,7 @@ func Apply(r *types.ProcessRecord) {
 			strings.Contains(cmdLower, "-e ") ||
 			strings.Contains(cmdLower, "frombase64")) {
 		r.RiskScore += 30
-		r.Reasons = append(r.Reasons, "PowerShell编码执行")
+		r.Reasons = append(r.Reasons, i18n.T("ps_encoded"))
 		hasCmdLineHit = true
 	}
 
@@ -148,7 +149,7 @@ func Apply(r *types.ProcessRecord) {
 		if strings.Contains(cmdLower, "-nop") || strings.Contains(cmdLower, "-noprofile") {
 			if strings.Contains(cmdLower, "-w hidden") || strings.Contains(cmdLower, "-windowstyle hidden") {
 				r.RiskScore += 20
-				r.Reasons = append(r.Reasons, "PowerShell隐藏窗口执行")
+				r.Reasons = append(r.Reasons, i18n.T("ps_hidden"))
 				hasCmdLineHit = true
 			}
 		}
@@ -162,7 +163,7 @@ func Apply(r *types.ProcessRecord) {
 			strings.Contains(cmdLower, "net.webclient") || strings.Contains(cmdLower, "bitstransfer") ||
 			strings.Contains(cmdLower, "start-bitstransfer")) {
 		r.RiskScore += 25
-		r.Reasons = append(r.Reasons, "PowerShell下载行为")
+		r.Reasons = append(r.Reasons, i18n.T("ps_download"))
 		hasCmdLineHit = true
 	}
 
@@ -173,7 +174,7 @@ func Apply(r *types.ProcessRecord) {
 			strings.Contains(cmdLower, "iex ") || strings.Contains(cmdLower, "iex(") ||
 			strings.Contains(cmdLower, "iex\"") || strings.Contains(cmdLower, "iex'")) {
 		r.RiskScore += 25
-		r.Reasons = append(r.Reasons, "PowerShell内存执行(IEX)")
+		r.Reasons = append(r.Reasons, i18n.T("ps_iex"))
 		hasCmdLineHit = true
 		psHasIEX = true
 	}
@@ -191,7 +192,7 @@ func Apply(r *types.ProcessRecord) {
 			strings.Contains(cmdLower, `\appdata\`) ||
 			strings.Contains(cmdLower, `\downloads\`) {
 			r.RiskScore += 30
-			r.Reasons = append(r.Reasons, "rundll32加载用户目录DLL")
+			r.Reasons = append(r.Reasons, i18n.T("rundll32_user_dll"))
 			hasCmdLineHit = true
 			rundll32UserDLL = true
 		}
@@ -206,7 +207,7 @@ func Apply(r *types.ProcessRecord) {
 		if strings.Contains(cmdLower, "/s") || strings.Contains(cmdLower, "/i:") ||
 			strings.Contains(cmdLower, "scrobj") || strings.Contains(cmdLower, "http") {
 			r.RiskScore += 30
-			r.Reasons = append(r.Reasons, "regsvr32可疑用法")
+			r.Reasons = append(r.Reasons, i18n.T("regsvr32_suspicious"))
 			hasCmdLineHit = true
 		}
 	}
@@ -220,7 +221,7 @@ func Apply(r *types.ProcessRecord) {
 		if strings.Contains(cmdLower, "http") || strings.Contains(cmdLower, "javascript") ||
 			strings.Contains(cmdLower, "vbscript") {
 			r.RiskScore += 30
-			r.Reasons = append(r.Reasons, "mshta可疑执行")
+			r.Reasons = append(r.Reasons, i18n.T("mshta_suspicious"))
 			hasCmdLineHit = true
 		}
 	}
@@ -229,7 +230,7 @@ func Apply(r *types.ProcessRecord) {
 	cmdSlashC := false
 	if nameLower == "cmd.exe" && strings.Contains(cmdLower, "/c") {
 		r.RiskScore += 20
-		r.Reasons = append(r.Reasons, "cmd /c 命令执行")
+		r.Reasons = append(r.Reasons, i18n.T("cmd_c_exec"))
 		hasCmdLineHit = true
 		cmdSlashC = true
 	}
@@ -239,7 +240,7 @@ func Apply(r *types.ProcessRecord) {
 		if strings.Contains(cmdLower, "-urlcache") || strings.Contains(cmdLower, "-decode") ||
 			strings.Contains(cmdLower, "-encode") || strings.Contains(cmdLower, "http") {
 			r.RiskScore += 25
-			r.Reasons = append(r.Reasons, "certutil可疑用法（下载/解码）")
+			r.Reasons = append(r.Reasons, i18n.T("certutil_suspicious"))
 			hasCmdLineHit = true
 		}
 	}
@@ -247,14 +248,14 @@ func Apply(r *types.ProcessRecord) {
 	// bitsadmin 文件传输: +25
 	if nameLower == "bitsadmin.exe" && strings.Contains(cmdLower, "/transfer") {
 		r.RiskScore += 25
-		r.Reasons = append(r.Reasons, "bitsadmin文件传输")
+		r.Reasons = append(r.Reasons, i18n.T("bitsadmin_transfer"))
 		hasCmdLineHit = true
 	}
 
 	// LOLBin 通用命中: +12
 	if r.IsLOLBin {
 		r.RiskScore += 12
-		r.Reasons = append(r.Reasons, "LOLBin进程")
+		r.Reasons = append(r.Reasons, i18n.T("lolbin_process"))
 	}
 
 	// --- 1.5 网络 & 持久化 ---
@@ -262,14 +263,14 @@ func Apply(r *types.ProcessRecord) {
 	// 存在外联: +10
 	if r.HasNetwork && len(r.RemoteIPs) > 0 {
 		r.RiskScore += 10
-		r.Reasons = append(r.Reasons, "存在外部连接")
+		r.Reasons = append(r.Reasons, i18n.T("has_external_conn"))
 		hasNetworkHit = true
 	}
 
 	// 公网连接: +10
 	if r.HasPublicIP {
 		r.RiskScore += 10
-		r.Reasons = append(r.Reasons, "公网IP连接")
+		r.Reasons = append(r.Reasons, i18n.T("public_ip_conn"))
 		hasNetworkHit = true
 	}
 
@@ -280,7 +281,7 @@ func Apply(r *types.ProcessRecord) {
 			score = 25
 		}
 		r.RiskScore += score
-		r.Reasons = append(r.Reasons, "存在持久化机制")
+		r.Reasons = append(r.Reasons, i18n.T("has_persistence"))
 		hasPersistenceHit = true
 	}
 
@@ -295,7 +296,7 @@ func Apply(r *types.ProcessRecord) {
 		(strings.Contains(cmdLower, "-enc") || strings.Contains(cmdLower, "-encodedcommand")) {
 		if overrideMin < 80 {
 			overrideMin = 80
-			r.Reasons = append(r.Reasons, "[强规则] Office→PowerShell+编码执行")
+			r.Reasons = append(r.Reasons, i18n.T("strong_office_ps_enc"))
 		}
 	}
 
@@ -303,7 +304,7 @@ func Apply(r *types.ProcessRecord) {
 	if regsvr32Http {
 		if overrideMin < 80 {
 			overrideMin = 80
-			r.Reasons = append(r.Reasons, "[强规则] regsvr32远程Scriptlet加载")
+			r.Reasons = append(r.Reasons, i18n.T("strong_regsvr32_remote"))
 		}
 	}
 
@@ -311,7 +312,7 @@ func Apply(r *types.ProcessRecord) {
 	if mshtaRemote {
 		if overrideMin < 80 {
 			overrideMin = 80
-			r.Reasons = append(r.Reasons, "[强规则] mshta远程执行")
+			r.Reasons = append(r.Reasons, i18n.T("strong_mshta_remote"))
 		}
 	}
 
@@ -319,7 +320,7 @@ func Apply(r *types.ProcessRecord) {
 	if psHasDownload && psHasIEX {
 		if overrideMin < 80 {
 			overrideMin = 80
-			r.Reasons = append(r.Reasons, "[强规则] PowerShell下载+内存执行")
+			r.Reasons = append(r.Reasons, i18n.T("strong_ps_download_iex"))
 		}
 	}
 
@@ -327,7 +328,7 @@ func Apply(r *types.ProcessRecord) {
 	if rundll32UserDLL && hasNetworkHit {
 		if overrideMin < 80 {
 			overrideMin = 80
-			r.Reasons = append(r.Reasons, "[强规则] rundll32用户DLL+外联")
+			r.Reasons = append(r.Reasons, i18n.T("strong_rundll32_user_net"))
 		}
 	}
 
@@ -337,7 +338,7 @@ func Apply(r *types.ProcessRecord) {
 	if r.IsLOLBin && hasCmdLineHit {
 		if overrideMin < 60 {
 			overrideMin = 60
-			r.Reasons = append(r.Reasons, "[强规则] LOLBin+恶意命令行")
+			r.Reasons = append(r.Reasons, i18n.T("strong_lolbin_malcmd"))
 		}
 	}
 
@@ -348,7 +349,7 @@ func Apply(r *types.ProcessRecord) {
 			strings.Contains(cmdLower, "-command") || strings.Contains(cmdLower, "-file")) {
 		if overrideMin < 60 {
 			overrideMin = 60
-			r.Reasons = append(r.Reasons, "[强规则] 浏览器→Shell+执行参数")
+			r.Reasons = append(r.Reasons, i18n.T("strong_browser_shell"))
 		}
 	}
 
@@ -359,7 +360,7 @@ func Apply(r *types.ProcessRecord) {
 			strings.Contains(cmdLower, "powershell")) {
 		if overrideMin < 60 {
 			overrideMin = 60
-			r.Reasons = append(r.Reasons, "[强规则] cmd /c 下载执行链")
+			r.Reasons = append(r.Reasons, i18n.T("strong_cmd_download"))
 		}
 	}
 
@@ -375,31 +376,31 @@ func Apply(r *types.ProcessRecord) {
 	// LOLBin + 命令行异常: +15
 	if r.IsLOLBin && hasCmdLineHit {
 		r.RiskScore += 15
-		r.Reasons = append(r.Reasons, "[组合] LOLBin+命令行异常")
+		r.Reasons = append(r.Reasons, i18n.T("combo_lolbin_cmdline"))
 	}
 
 	// 命令行异常 + 用户目录: +10
 	if hasCmdLineHit && hasPathHit {
 		r.RiskScore += 10
-		r.Reasons = append(r.Reasons, "[组合] 命令行异常+可疑路径")
+		r.Reasons = append(r.Reasons, i18n.T("combo_cmdline_path"))
 	}
 
 	// 命令行异常 + 外联: +15
 	if hasCmdLineHit && hasNetworkHit {
 		r.RiskScore += 15
-		r.Reasons = append(r.Reasons, "[组合] 命令行异常+外联")
+		r.Reasons = append(r.Reasons, i18n.T("combo_cmdline_net"))
 	}
 
 	// 外联 + 持久化: +20
 	if hasNetworkHit && hasPersistenceHit {
 		r.RiskScore += 20
-		r.Reasons = append(r.Reasons, "[组合] 外联+持久化")
+		r.Reasons = append(r.Reasons, i18n.T("combo_net_persist"))
 	}
 
 	// 父子链异常 + 命令行异常: +15
 	if hasParentChainHit && hasCmdLineHit {
 		r.RiskScore += 15
-		r.Reasons = append(r.Reasons, "[组合] 父子链异常+命令行异常")
+		r.Reasons = append(r.Reasons, i18n.T("combo_parent_cmdline"))
 	}
 
 	// ========================================
@@ -423,7 +424,7 @@ func Apply(r *types.ProcessRecord) {
 			strings.Contains(cmdLower, "native-messaging") ||
 			strings.Contains(cmdLower, "--parent-window")) {
 		r.RiskScore -= 15
-		r.Reasons = filterReason(r.Reasons, "浏览器派生系统工具")
+		r.Reasons = filterReason(r.Reasons, i18n.T("browser_spawn_tool"))
 	}
 
 	// ========================================

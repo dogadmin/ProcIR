@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 
+	"procir/internal/i18n"
 	"procir/internal/types"
 )
 
@@ -126,7 +127,7 @@ func collectSecurityProcessCreation(cfg *types.EventCollectConfig) ([]*types.Eve
 			Time:        parseTime(e.System.TimeCreated.SystemTime),
 			Computer:    e.System.Computer,
 			User:        fullUser,
-			Description: fmt.Sprintf("进程创建: %s → %s", baseName(parent), baseName(proc)),
+			Description: fmt.Sprintf(i18n.T("evtc_proc_create"), baseName(parent), baseName(proc)),
 			ProcessPath: proc,
 			CommandLine: cmd,
 			ParentPath:  parent,
@@ -151,9 +152,9 @@ func collectSecurityTaskEvents(cfg *types.EventCollectConfig) ([]*types.EventEvi
 		taskContent := e.EventData.get("TaskContent")
 		user := e.EventData.get("SubjectUserName")
 
-		desc := "创建计划任务"
+		desc := i18n.T("evtc_task_create")
 		if e.System.EventID == 4702 {
-			desc = "修改计划任务"
+			desc = i18n.T("evtc_task_modify")
 		}
 
 		results = append(results, &types.EventEvidence{
@@ -191,7 +192,7 @@ func collectSecurityServiceInstall(cfg *types.EventCollectConfig) ([]*types.Even
 			Time:        parseTime(e.System.TimeCreated.SystemTime),
 			Computer:    e.System.Computer,
 			User:        user,
-			Description: fmt.Sprintf("服务安装(Security): %s → %s", svcName, truncStr(svcFile, 100)),
+			Description: fmt.Sprintf(i18n.T("evtc_svc_install_sec"), svcName, truncStr(svcFile, 100)),
 			ServiceName: svcName,
 			TargetPath:  svcFile,
 		})
@@ -230,21 +231,21 @@ func collectSecurityLogon(cfg *types.EventCollectConfig) ([]*types.EventEvidence
 			// Only flag network/remote logons (type 3,10) and service logons (type 5)
 			if logonType == "3" || logonType == "10" || logonType == "5" {
 				interesting = true
-				desc = fmt.Sprintf("登录成功(类型%s): %s\\%s", logonType, domain, user)
+				desc = fmt.Sprintf(i18n.T("evtc_logon_success"), logonType, domain, user)
 			}
 		case 4625:
 			interesting = true
-			desc = fmt.Sprintf("登录失败(类型%s): %s\\%s", logonType, domain, user)
+			desc = fmt.Sprintf(i18n.T("evtc_logon_fail"), logonType, domain, user)
 		case 4648:
 			interesting = true
 			targetUser := e.EventData.get("TargetUserName")
 			targetServer := e.EventData.get("TargetServerName")
-			desc = fmt.Sprintf("显式凭证登录: %s → %s@%s", user, targetUser, targetServer)
+			desc = fmt.Sprintf(i18n.T("evtc_explicit_cred_logon"), user, targetUser, targetServer)
 		case 4672:
 			// Special privilege logon - only if non-SYSTEM
 			if !strings.EqualFold(user, "SYSTEM") && !strings.EqualFold(user, "LOCAL SERVICE") && !strings.EqualFold(user, "NETWORK SERVICE") {
 				interesting = true
-				desc = fmt.Sprintf("特权登录: %s\\%s", domain, user)
+				desc = fmt.Sprintf(i18n.T("evtc_priv_logon"), domain, user)
 			}
 		}
 
@@ -287,7 +288,7 @@ func collectSystemServiceInstall(cfg *types.EventCollectConfig) ([]*types.EventE
 			EventID:     7045,
 			Time:        parseTime(e.System.TimeCreated.SystemTime),
 			Computer:    e.System.Computer,
-			Description: fmt.Sprintf("服务安装: %s [类型:%s 启动:%s]", svcName, svcType, startType),
+			Description: fmt.Sprintf(i18n.T("evtc_svc_install_sys"), svcName, svcType, startType),
 			ServiceName: svcName,
 			TargetPath:  imagePath,
 		})
@@ -316,7 +317,7 @@ func collectPowerShellScriptBlock(cfg *types.EventCollectConfig) ([]*types.Event
 			EventID:     4104,
 			Time:        parseTime(e.System.TimeCreated.SystemTime),
 			Computer:    e.System.Computer,
-			Description: "PowerShell脚本块: " + truncStr(scriptBlock, 120),
+			Description: fmt.Sprintf(i18n.T("evtc_ps_scriptblock"), truncStr(scriptBlock, 120)),
 			ProcessPath: "powershell.exe",
 			CommandLine: truncStr(scriptBlock, 2000),
 		})
@@ -342,9 +343,9 @@ func collectTaskScheduler(cfg *types.EventCollectConfig) ([]*types.EventEvidence
 		}
 		actionName := e.EventData.get("ActionName")
 
-		desc := "计划任务注册"
+		desc := i18n.T("evtc_task_register")
 		if e.System.EventID == 200 {
-			desc = "计划任务执行"
+			desc = i18n.T("evtc_task_execute")
 		}
 
 		results = append(results, &types.EventEvidence{
@@ -381,7 +382,7 @@ func collectWMIActivity(cfg *types.EventCollectConfig) ([]*types.EventEvidence, 
 			EventID:     e.System.EventID,
 			Time:        parseTime(e.System.TimeCreated.SystemTime),
 			Computer:    e.System.Computer,
-			Description: "WMI操作: " + truncStr(operation, 150),
+			Description: fmt.Sprintf(i18n.T("evtc_wmi_operation"), truncStr(operation, 150)),
 			CommandLine: operation,
 		})
 	}
@@ -414,28 +415,28 @@ func collectSysmon(cfg *types.EventCollectConfig) ([]*types.EventEvidence, error
 			ev.CommandLine = e.EventData.get("CommandLine")
 			ev.ParentPath = e.EventData.get("ParentImage")
 			ev.ProcessID = e.EventData.get("ProcessId")
-			ev.Description = fmt.Sprintf("Sysmon进程创建: %s → %s", baseName(ev.ParentPath), baseName(ev.ProcessPath))
+			ev.Description = fmt.Sprintf(i18n.T("evtc_sysmon_proc_create"), baseName(ev.ParentPath), baseName(ev.ProcessPath))
 		case 3: // Network connection
 			ev.ProcessPath = e.EventData.get("Image")
 			ev.IPAddress = e.EventData.get("DestinationIp")
 			ev.Port = e.EventData.get("DestinationPort")
-			ev.Description = fmt.Sprintf("Sysmon网络连接: %s → %s:%s", baseName(ev.ProcessPath), ev.IPAddress, ev.Port)
+			ev.Description = fmt.Sprintf(i18n.T("evtc_sysmon_net_conn"), baseName(ev.ProcessPath), ev.IPAddress, ev.Port)
 		case 7: // Image loaded
 			ev.ProcessPath = e.EventData.get("Image")
 			ev.TargetPath = e.EventData.get("ImageLoaded")
-			ev.Description = fmt.Sprintf("Sysmon模块加载: %s 加载 %s", baseName(ev.ProcessPath), baseName(ev.TargetPath))
+			ev.Description = fmt.Sprintf(i18n.T("evtc_sysmon_image_load"), baseName(ev.ProcessPath), baseName(ev.TargetPath))
 		case 11: // File created
 			ev.ProcessPath = e.EventData.get("Image")
 			ev.TargetPath = e.EventData.get("TargetFilename")
-			ev.Description = fmt.Sprintf("Sysmon文件创建: %s → %s", baseName(ev.ProcessPath), baseName(ev.TargetPath))
+			ev.Description = fmt.Sprintf(i18n.T("evtc_sysmon_file_create"), baseName(ev.ProcessPath), baseName(ev.TargetPath))
 		case 13: // Registry modified
 			ev.ProcessPath = e.EventData.get("Image")
 			ev.TargetPath = e.EventData.get("TargetObject")
-			ev.Description = fmt.Sprintf("Sysmon注册表修改: %s → %s", baseName(ev.ProcessPath), truncStr(ev.TargetPath, 80))
+			ev.Description = fmt.Sprintf(i18n.T("evtc_sysmon_reg_mod"), baseName(ev.ProcessPath), truncStr(ev.TargetPath, 80))
 		case 22: // DNS query
 			ev.ProcessPath = e.EventData.get("Image")
 			ev.Domain = e.EventData.get("QueryName")
-			ev.Description = fmt.Sprintf("Sysmon DNS查询: %s → %s", baseName(ev.ProcessPath), ev.Domain)
+			ev.Description = fmt.Sprintf(i18n.T("evtc_sysmon_dns_query"), baseName(ev.ProcessPath), ev.Domain)
 		default:
 			continue
 		}
@@ -449,7 +450,7 @@ func collectSysmon(cfg *types.EventCollectConfig) ([]*types.EventEvidence, error
 
 func collectOfflineEvtx(cfg *types.EventCollectConfig) ([]*types.EventEvidence, error) {
 	if _, err := os.Stat(cfg.OfflinePath); err != nil {
-		return nil, fmt.Errorf("EVTX文件不存在: %s", cfg.OfflinePath)
+		return nil, fmt.Errorf(i18n.T("evtc_evtx_not_found"), cfg.OfflinePath)
 	}
 
 	// Query all events from the offline file (limited by maxEvents)
@@ -495,12 +496,12 @@ func firstNonEmpty(vals ...string) string {
 
 func describeEventID(id int) string {
 	m := map[int]string{
-		4688: "进程创建", 4698: "任务创建", 4702: "任务修改", 4697: "服务安装",
-		4624: "登录成功", 4625: "登录失败", 4648: "显式凭证", 4672: "特权登录",
-		7045: "服务安装", 7036: "服务状态变化",
-		4104: "PS脚本块", 4103: "PS模块日志",
-		1: "进程创建(Sysmon)", 3: "网络连接(Sysmon)", 7: "模块加载(Sysmon)",
-		11: "文件创建(Sysmon)", 13: "注册表修改(Sysmon)", 22: "DNS查询(Sysmon)",
+		4688: i18n.T("evttype_proc_create"), 4698: i18n.T("evttype_task_create"), 4702: i18n.T("evttype_task_modify"), 4697: i18n.T("evttype_svc_install"),
+		4624: i18n.T("evttype_logon_success"), 4625: i18n.T("evttype_logon_fail"), 4648: i18n.T("evttype_explicit_cred"), 4672: i18n.T("evttype_priv_logon"),
+		7045: i18n.T("evttype_svc_install_sys"), 7036: i18n.T("evttype_svc_state_change"),
+		4104: i18n.T("evttype_ps_scriptblock"), 4103: i18n.T("evttype_ps_module_log"),
+		1: i18n.T("evttype_proc_create_sysmon"), 3: i18n.T("evttype_net_conn_sysmon"), 7: i18n.T("evttype_image_load_sysmon"),
+		11: i18n.T("evttype_file_create_sysmon"), 13: i18n.T("evttype_reg_mod_sysmon"), 22: i18n.T("evttype_dns_query_sysmon"),
 	}
 	if desc, ok := m[id]; ok {
 		return desc

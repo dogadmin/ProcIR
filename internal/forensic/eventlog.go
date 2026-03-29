@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"procir/internal/i18n"
 	"procir/internal/types"
 )
 
@@ -120,7 +121,7 @@ func queryProcessCreation() []*types.ForensicEntry {
 			EventID:     4688,
 			EventTime:   timeStr,
 			EventSource: "Security",
-			Detail:      fmt.Sprintf("进程创建(4688): %s → %s [%s] %s", baseName(parentProcess), baseName(newProcessName), user, timeStr),
+			Detail:      fmt.Sprintf(i18n.T("fore_proc_create_4688"), baseName(parentProcess), baseName(newProcessName), user, timeStr),
 		}
 
 		results = append(results, fe)
@@ -181,7 +182,7 @@ func queryPowerShell() []*types.ForensicEntry {
 			EventID:     4104,
 			EventTime:   timeStr,
 			EventSource: "PowerShell/Operational",
-			Detail:      fmt.Sprintf("PowerShell脚本(4104): %s [%s]", truncStr(snippet, 100), timeStr),
+			Detail:      fmt.Sprintf(i18n.T("fore_ps_script_4104"), truncStr(snippet, 100), timeStr),
 		}
 
 		results = append(results, fe)
@@ -217,7 +218,7 @@ func queryServiceInstall() []*types.ForensicEntry {
 			EventID:     7045,
 			EventTime:   timeStr,
 			EventSource: "System",
-			Detail:      fmt.Sprintf("服务安装(7045): %s → %s [类型:%s 启动:%s] %s", serviceName, truncStr(imagePath, 80), serviceType, startType, timeStr),
+			Detail:      fmt.Sprintf(i18n.T("fore_svc_install_7045"), serviceName, truncStr(imagePath, 80), serviceType, startType, timeStr),
 		}
 
 		results = append(results, fe)
@@ -253,7 +254,7 @@ func queryTaskCreation() []*types.ForensicEntry {
 			EventID:     4698,
 			EventTime:   timeStr,
 			EventSource: "Security",
-			Detail:      fmt.Sprintf("任务创建(4698): %s [%s] %s", taskName, user, timeStr),
+			Detail:      fmt.Sprintf(i18n.T("fore_task_create_4698"), taskName, user, timeStr),
 		}
 
 		results = append(results, fe)

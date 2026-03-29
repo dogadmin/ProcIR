@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"procir/internal/i18n"
 	"procir/internal/types"
 )
 
@@ -57,16 +58,16 @@ func collectPrefetch() []*types.ForensicEntry {
 		age := now.Sub(modTime)
 		ageLabel := ""
 		if age < 24*time.Hour {
-			ageLabel = "24小时内"
+			ageLabel = i18n.T("fore_24h")
 		} else if age < 72*time.Hour {
-			ageLabel = "72小时内"
+			ageLabel = i18n.T("fore_72h")
 		} else if age < 7*24*time.Hour {
-			ageLabel = "7天内"
+			ageLabel = i18n.T("fore_7d")
 		}
 
 		detail := fmt.Sprintf("Prefetch: %s", exeName)
 		if ageLabel != "" {
-			detail += fmt.Sprintf(" (最后执行: %s)", ageLabel)
+			detail += fmt.Sprintf(i18n.T("fore_last_exec"), ageLabel)
 		}
 
 		fe := &types.ForensicEntry{

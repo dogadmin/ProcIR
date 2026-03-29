@@ -3,6 +3,7 @@ package event
 import (
 	"strings"
 
+	"procir/internal/i18n"
 	"procir/internal/types"
 )
 
@@ -24,123 +25,123 @@ func scoreEvent(e *types.EventEvidence) {
 	switch e.EventID {
 	case 4688, 1: // Process creation
 		e.Score += 5
-		e.Reasons = append(e.Reasons, "进程创建事件")
+		e.Reasons = append(e.Reasons, i18n.T("evt_proc_create"))
 
 		// User/temp dir execution
 		if isUserOrTemp(procLower) {
 			e.Score += 15
-			e.Reasons = append(e.Reasons, "用户/临时目录执行")
+			e.Reasons = append(e.Reasons, i18n.T("evt_user_temp_exec"))
 		}
 
 		// Suspicious command line
 		if hasSuspiciousCmdLine(cmdLower) {
 			e.Score += 20
-			e.Reasons = append(e.Reasons, "可疑命令行")
+			e.Reasons = append(e.Reasons, i18n.T("evt_susp_cmdline"))
 		}
 
 		// LOLBin execution
 		if isLOLBinPath(procLower) && hasSuspiciousCmdLine(cmdLower) {
 			e.Score += 15
-			e.Reasons = append(e.Reasons, "LOLBin可疑用法")
+			e.Reasons = append(e.Reasons, i18n.T("evt_lolbin_usage"))
 		}
 
 	case 4104: // PowerShell script block
 		e.Score += 10
-		e.Reasons = append(e.Reasons, "PowerShell脚本块")
+		e.Reasons = append(e.Reasons, i18n.T("evt_ps_scriptblock"))
 
 		if hasDangerousPSContent(cmdLower) {
 			e.Score += 30
-			e.Reasons = append(e.Reasons, "高危PowerShell内容")
+			e.Reasons = append(e.Reasons, i18n.T("evt_ps_highrisk"))
 		} else if hasSuspiciousPSContent(cmdLower) {
 			e.Score += 20
-			e.Reasons = append(e.Reasons, "可疑PowerShell内容")
+			e.Reasons = append(e.Reasons, i18n.T("evt_ps_suspicious"))
 		}
 
 	case 4698, 4702: // Task creation/modification
 		e.Score += 15
-		e.Reasons = append(e.Reasons, "计划任务操作")
+		e.Reasons = append(e.Reasons, i18n.T("evt_task_operation"))
 
 		if strings.Contains(cmdLower, "powershell") || strings.Contains(cmdLower, "cmd") ||
 			strings.Contains(cmdLower, "mshta") || strings.Contains(cmdLower, "wscript") {
 			e.Score += 15
-			e.Reasons = append(e.Reasons, "任务调用脚本引擎")
+			e.Reasons = append(e.Reasons, i18n.T("evt_task_script"))
 		}
 		if strings.Contains(cmdLower, "-enc") || strings.Contains(cmdLower, "http") {
 			e.Score += 20
-			e.Reasons = append(e.Reasons, "任务包含编码/URL")
+			e.Reasons = append(e.Reasons, i18n.T("evt_task_encoded"))
 		}
 
 	case 4697, 7045: // Service installation
 		e.Score += 15
-		e.Reasons = append(e.Reasons, "服务安装事件")
+		e.Reasons = append(e.Reasons, i18n.T("evt_svc_install"))
 
 		if isUserOrTemp(targetLower) {
 			e.Score += 20
-			e.Reasons = append(e.Reasons, "服务指向用户/临时目录")
+			e.Reasons = append(e.Reasons, i18n.T("evt_svc_user_temp"))
 		}
 		if strings.Contains(targetLower, "powershell") || strings.Contains(targetLower, "cmd.exe") ||
 			strings.Contains(targetLower, "mshta") {
 			e.Score += 20
-			e.Reasons = append(e.Reasons, "服务调用脚本引擎")
+			e.Reasons = append(e.Reasons, i18n.T("evt_svc_script"))
 		}
 
 	case 4624: // Logon
 		e.Score += 5
-		e.Reasons = append(e.Reasons, "登录事件")
+		e.Reasons = append(e.Reasons, i18n.T("evt_logon"))
 		if e.LogonType == "10" {
 			e.Score += 10
-			e.Reasons = append(e.Reasons, "RDP远程登录")
+			e.Reasons = append(e.Reasons, i18n.T("evt_rdp_logon"))
 		} else if e.LogonType == "3" && e.IPAddress != "" {
 			e.Score += 5
-			e.Reasons = append(e.Reasons, "网络登录")
+			e.Reasons = append(e.Reasons, i18n.T("evt_network_logon"))
 		}
 
 	case 4625: // Failed logon
 		e.Score += 10
-		e.Reasons = append(e.Reasons, "登录失败")
+		e.Reasons = append(e.Reasons, i18n.T("evt_logon_fail"))
 
 	case 4648: // Explicit credentials
 		e.Score += 15
-		e.Reasons = append(e.Reasons, "显式凭证使用")
+		e.Reasons = append(e.Reasons, i18n.T("evt_explicit_cred"))
 
 	case 4672: // Privilege
 		e.Score += 10
-		e.Reasons = append(e.Reasons, "特权登录")
+		e.Reasons = append(e.Reasons, i18n.T("evt_priv_logon"))
 
 	case 3: // Sysmon network
 		e.Score += 5
-		e.Reasons = append(e.Reasons, "网络连接(Sysmon)")
+		e.Reasons = append(e.Reasons, i18n.T("evt_sysmon_net"))
 		if isUserOrTemp(procLower) {
 			e.Score += 15
-			e.Reasons = append(e.Reasons, "用户目录程序外联")
+			e.Reasons = append(e.Reasons, i18n.T("evt_sysmon_user_net"))
 		}
 
 	case 7: // Sysmon image load
 		e.Score += 3
 		if isUserOrTemp(targetLower) {
 			e.Score += 20
-			e.Reasons = append(e.Reasons, "加载用户目录模块(Sysmon)")
+			e.Reasons = append(e.Reasons, i18n.T("evt_sysmon_module"))
 		}
 
 	case 11: // Sysmon file create
 		e.Score += 3
 		if isUserOrTemp(targetLower) && isExecutableExt(targetLower) {
 			e.Score += 15
-			e.Reasons = append(e.Reasons, "用户目录创建可执行文件(Sysmon)")
+			e.Reasons = append(e.Reasons, i18n.T("evt_sysmon_filecreate"))
 		}
 
 	case 13: // Sysmon registry
 		e.Score += 3
 		if strings.Contains(targetLower, `\run\`) || strings.Contains(targetLower, `\runonce\`) {
 			e.Score += 20
-			e.Reasons = append(e.Reasons, "修改自启动注册表(Sysmon)")
+			e.Reasons = append(e.Reasons, i18n.T("evt_sysmon_regmod"))
 		}
 
 	case 22: // Sysmon DNS
 		e.Score += 2
 		if e.Domain != "" && isUserOrTemp(procLower) {
 			e.Score += 10
-			e.Reasons = append(e.Reasons, "用户目录程序DNS查询(Sysmon)")
+			e.Reasons = append(e.Reasons, i18n.T("evt_sysmon_dns"))
 		}
 	}
 }

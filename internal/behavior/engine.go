@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"procir/internal/i18n"
 	"procir/internal/types"
 )
 
@@ -66,14 +67,14 @@ func detectOfficeMacro(procs []*types.ProcessRecord, childMap map[uint32][]*type
 				continue
 			}
 			evidence := []string{
-				fmt.Sprintf("Office进程: %s (PID:%d)", p.Name, p.PID),
-				fmt.Sprintf("派生脚本引擎: %s (PID:%d)", child.Name, child.PID),
+				fmt.Sprintf(i18n.T("beh_office_proc"), p.Name, p.PID),
+				fmt.Sprintf(i18n.T("beh_spawn_script"), child.Name, child.PID),
 			}
 			if child.CommandLine != "" {
-				evidence = append(evidence, "命令行: "+truncate(child.CommandLine, 150))
+				evidence = append(evidence, i18n.T("beh_cmdline")+truncate(child.CommandLine, 150))
 			}
 			if child.HasPublicIP {
-				evidence = append(evidence, "存在公网连接")
+				evidence = append(evidence, i18n.T("beh_public_conn"))
 			}
 
 			score := 25
@@ -85,7 +86,7 @@ func detectOfficeMacro(procs []*types.ProcessRecord, childMap map[uint32][]*type
 			}
 
 			chains = append(chains, &types.BehaviorChain{
-				PatternName:  "宏攻击链 (Office→脚本引擎)",
+				PatternName:  i18n.T("beh_macro_chain"),
 				PatternScore: score,
 				Evidence:     evidence,
 				ObjectPaths:  []string{p.Path, child.Path},
@@ -123,15 +124,15 @@ func detectBrowserExploit(procs []*types.ProcessRecord, childMap map[uint32][]*t
 			}
 
 			evidence := []string{
-				fmt.Sprintf("浏览器: %s (PID:%d)", p.Name, p.PID),
-				fmt.Sprintf("派生系统工具: %s (PID:%d)", child.Name, child.PID),
+				fmt.Sprintf(i18n.T("beh_browser"), p.Name, p.PID),
+				fmt.Sprintf(i18n.T("beh_spawn_tool"), child.Name, child.PID),
 			}
 			if child.CommandLine != "" {
-				evidence = append(evidence, "命令行: "+truncate(child.CommandLine, 150))
+				evidence = append(evidence, i18n.T("beh_cmdline")+truncate(child.CommandLine, 150))
 			}
 
 			chains = append(chains, &types.BehaviorChain{
-				PatternName:  "浏览器利用链 (Browser→系统工具)",
+				PatternName:  i18n.T("beh_browser_chain"),
 				PatternScore: 20,
 				Evidence:     evidence,
 				ObjectPaths:  []string{p.Path, child.Path},
@@ -173,27 +174,27 @@ func detectPersistenceExec(triggers []*types.TriggerEntry, forensics []*types.Fo
 
 		if hasRecentFile && hasPrefetch {
 			chains = append(chains, &types.BehaviorChain{
-				PatternName:  "持久化执行链 (文件落地→注册→执行)",
+				PatternName:  i18n.T("beh_persist_chain"),
 				PatternScore: 20,
 				Evidence: []string{
-					fmt.Sprintf("触发器: [%s] %s", t.Type, t.Name),
-					fmt.Sprintf("目标路径: %s", t.Path),
-					"最近文件修改: 是",
-					"Prefetch执行记录: 是",
+					fmt.Sprintf(i18n.T("beh_trigger_fmt"), t.Type, t.Name),
+					fmt.Sprintf(i18n.T("beh_target_path"), t.Path),
+					i18n.T("beh_recent_file_mod"),
+					i18n.T("beh_prefetch_record"),
 				},
 				ObjectPaths: []string{t.Path},
 			})
 		} else if hasRecentFile || hasPrefetch {
-			reason := "最近文件修改"
+			reason := i18n.T("beh_recent_file")
 			if hasPrefetch {
-				reason = "Prefetch执行记录"
+				reason = i18n.T("beh_prefetch")
 			}
 			chains = append(chains, &types.BehaviorChain{
-				PatternName:  "持久化关联 (触发器+历史痕迹)",
+				PatternName:  i18n.T("beh_persist_assoc"),
 				PatternScore: 15,
 				Evidence: []string{
-					fmt.Sprintf("触发器: [%s] %s", t.Type, t.Name),
-					fmt.Sprintf("关联证据: %s", reason),
+					fmt.Sprintf(i18n.T("beh_trigger_fmt"), t.Type, t.Name),
+					fmt.Sprintf(i18n.T("beh_assoc_evidence"), reason),
 				},
 				ObjectPaths: []string{t.Path},
 			})
@@ -219,12 +220,12 @@ func detectWMIBackdoor(triggers []*types.TriggerEntry) []*types.BehaviorChain {
 
 		if hasScript && (hasURL || hasEnc) {
 			chains = append(chains, &types.BehaviorChain{
-				PatternName:  "WMI后门链 (WMI→脚本引擎→远程)",
+				PatternName:  i18n.T("beh_wmi_chain"),
 				PatternScore: 30,
 				Evidence: []string{
 					fmt.Sprintf("WMI Consumer: %s", t.Name),
-					fmt.Sprintf("命令: %s", truncate(t.CommandLine, 150)),
-					fmt.Sprintf("脚本引擎: %v, URL: %v, 编码: %v", hasScript, hasURL, hasEnc),
+					fmt.Sprintf(i18n.T("beh_command"), truncate(t.CommandLine, 150)),
+					fmt.Sprintf(i18n.T("beh_wmi_flags"), hasScript, hasURL, hasEnc),
 				},
 				ObjectPaths: []string{t.Path},
 			})
@@ -247,12 +248,12 @@ func detectDLLSideload(forensics []*types.ForensicEntry) []*types.BehaviorChain 
 			strings.Contains(pathLower, `\appdata\`) {
 			if !f.ModuleSigned {
 				chains = append(chains, &types.BehaviorChain{
-					PatternName:  "DLL侧加载链 (进程→用户目录DLL)",
+					PatternName:  i18n.T("beh_dll_sideload_chain"),
 					PatternScore: 25,
 					Evidence: []string{
-						fmt.Sprintf("宿主进程: %s (PID:%d)", f.ProcessName, f.ProcessPID),
-						fmt.Sprintf("可疑DLL: %s", f.ModulePath),
-						"签名: 否",
+						fmt.Sprintf(i18n.T("beh_host_proc"), f.ProcessName, f.ProcessPID),
+						fmt.Sprintf(i18n.T("beh_susp_dll"), f.ModulePath),
+						i18n.T("beh_unsigned"),
 					},
 					ObjectPaths: []string{f.ModulePath},
 				})
@@ -279,11 +280,11 @@ func detectDownloadExec(procs []*types.ProcessRecord) []*types.BehaviorChain {
 
 			if hasDownload && hasExec {
 				chains = append(chains, &types.BehaviorChain{
-					PatternName:  "下载执行链 (cmd /c 下载+执行)",
+					PatternName:  i18n.T("beh_download_chain"),
 					PatternScore: 25,
 					Evidence: []string{
-						fmt.Sprintf("进程: %s (PID:%d)", p.Name, p.PID),
-						fmt.Sprintf("命令行: %s", truncate(p.CommandLine, 200)),
+						fmt.Sprintf(i18n.T("beh_process_fmt"), p.Name, p.PID),
+						fmt.Sprintf(i18n.T("beh_cmdline_fmt"), truncate(p.CommandLine, 200)),
 					},
 					ObjectPaths: []string{p.Path},
 				})
@@ -295,11 +296,11 @@ func detectDownloadExec(procs []*types.ProcessRecord) []*types.BehaviorChain {
 			(strings.Contains(cmdLower, "downloadstring") || strings.Contains(cmdLower, "invoke-webrequest")) &&
 			(strings.Contains(cmdLower, "iex") || strings.Contains(cmdLower, "invoke-expression")) {
 			chains = append(chains, &types.BehaviorChain{
-				PatternName:  "PowerShell下载执行链 (Download+IEX)",
+				PatternName:  i18n.T("beh_ps_download_chain"),
 				PatternScore: 30,
 				Evidence: []string{
-					fmt.Sprintf("进程: %s (PID:%d)", p.Name, p.PID),
-					fmt.Sprintf("命令行: %s", truncate(p.CommandLine, 200)),
+					fmt.Sprintf(i18n.T("beh_process_fmt"), p.Name, p.PID),
+					fmt.Sprintf(i18n.T("beh_cmdline_fmt"), truncate(p.CommandLine, 200)),
 				},
 				ObjectPaths: []string{p.Path},
 			})

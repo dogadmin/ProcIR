@@ -5,6 +5,7 @@ import (
 	"strings"
 	"unsafe"
 
+	"procir/internal/i18n"
 	"procir/internal/types"
 
 	"golang.org/x/sys/windows"
@@ -69,7 +70,7 @@ func Analyze(pid uint32, procName, procPath, user string, signed bool, signer st
 	}
 
 	if pid == 0 || pid == 4 {
-		result.Error = "系统进程不支持内存分析"
+		result.Error = i18n.T("mem_system_process")
 		return result
 	}
 
@@ -79,7 +80,7 @@ func Analyze(pid uint32, procName, procPath, user string, signed bool, signer st
 		false, pid,
 	)
 	if err != nil {
-		result.Error = fmt.Sprintf("无法打开进程: %v (可能需要管理员权限)", err)
+		result.Error = fmt.Sprintf(i18n.T("mem_open_fail"), err)
 		return result
 	}
 	defer windows.CloseHandle(h)
@@ -132,21 +133,21 @@ func Analyze(pid uint32, procName, procPath, user string, signed bool, signer st
 			if region.IsRWX {
 				result.RWXCount++
 				region.IsSuspicious = true
-				region.Reason = "RWX内存区域(可读可写可执行)"
+				region.Reason = i18n.T("mem_rwx_region")
 			}
 			if region.IsPrivateExec {
 				result.PrivateExecCount++
 				region.IsSuspicious = true
 				if region.Reason == "" {
-					region.Reason = "私有可执行内存(无文件映射)"
+					region.Reason = i18n.T("mem_private_exec")
 				} else {
-					region.Reason += " + 私有可执行"
+					region.Reason += " + " + i18n.T("mem_private_exec_short")
 				}
 			}
 			if region.IsNoImageExec && !region.IsRWX && !region.IsPrivateExec {
 				result.NoImageExecCount++
 				region.IsSuspicious = true
-				region.Reason = "非映像可执行区域"
+				region.Reason = i18n.T("mem_noimage_exec")
 			}
 
 			result.AllRegions = append(result.AllRegions, region)
@@ -177,31 +178,31 @@ func scoreMemory(r *types.MemoryAnalysis, procName string) {
 	// Rule 1: RWX exists → +20
 	if r.RWXCount > 0 {
 		r.Score += 20
-		r.Reasons = append(r.Reasons, fmt.Sprintf("存在RWX内存区域(%d个)", r.RWXCount))
+		r.Reasons = append(r.Reasons, fmt.Sprintf(i18n.T("mem_has_rwx"), r.RWXCount))
 	}
 
 	// Rule 2: Multiple RWX → +10
 	if r.RWXCount > 1 {
 		r.Score += 10
-		r.Reasons = append(r.Reasons, "多个RWX区域")
+		r.Reasons = append(r.Reasons, i18n.T("mem_multi_rwx"))
 	}
 
 	// Rule 3: Private + Executable → +30
 	if r.PrivateExecCount > 0 {
 		r.Score += 30
-		r.Reasons = append(r.Reasons, fmt.Sprintf("私有可执行内存(%d个)", r.PrivateExecCount))
+		r.Reasons = append(r.Reasons, fmt.Sprintf(i18n.T("mem_has_private_exec"), r.PrivateExecCount))
 	}
 
 	// Rule 4: NoImage Executable → +40
 	if r.NoImageExecCount > 0 {
 		r.Score += 40
-		r.Reasons = append(r.Reasons, fmt.Sprintf("非映像可执行区域(%d个)", r.NoImageExecCount))
+		r.Reasons = append(r.Reasons, fmt.Sprintf(i18n.T("mem_has_noimage_exec"), r.NoImageExecCount))
 	}
 
 	// Rule 5: RWX + Private combo → +20
 	if r.RWXCount > 0 && r.PrivateExecCount > 0 {
 		r.Score += 20
-		r.Reasons = append(r.Reasons, "RWX+私有可执行组合")
+		r.Reasons = append(r.Reasons, i18n.T("mem_rwx_private_combo"))
 	}
 
 	// Anti-FP: JIT process with only RWX (no PrivateExec) → -15

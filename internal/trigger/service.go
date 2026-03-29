@@ -5,6 +5,7 @@ import (
 	"strings"
 	"unsafe"
 
+	"procir/internal/i18n"
 	"procir/internal/types"
 
 	"golang.org/x/sys/windows"
@@ -110,7 +111,7 @@ func collectServices() []*types.TriggerEntry {
 			Name:             svcName,
 			Path:             exePath,
 			CommandLine:      binaryPath,
-			Detail:           fmt.Sprintf("服务: %s (%s) [%s] %s", svcName, displayName, startType, state),
+			Detail:           fmt.Sprintf(i18n.T("trig_svc_fmt"), svcName, displayName, startType, state),
 			ServiceStartType: startType,
 			ServiceAccount:   account,
 			ServiceState:     state,

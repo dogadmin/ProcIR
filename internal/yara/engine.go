@@ -5,6 +5,7 @@ import (
 	"strings"
 	"sync"
 
+	"procir/internal/i18n"
 	"procir/internal/types"
 )
 
@@ -155,19 +156,19 @@ func applyHits(obj *types.ExecutionObject, hits []YaraHit) {
 	// Synergy: YARA + network
 	if obj.NetworkObserved {
 		score += 20
-		obj.Reasons = append(obj.Reasons, "[YARA] 命中规则+外联")
+		obj.Reasons = append(obj.Reasons, i18n.T("yara_fusion_hit_network"))
 	}
 
 	// Synergy: YARA + persistence
 	if obj.TriggerCount > 0 {
 		score += 15
-		obj.Reasons = append(obj.Reasons, "[YARA] 命中规则+持久化")
+		obj.Reasons = append(obj.Reasons, i18n.T("yara_fusion_hit_persist"))
 	}
 
 	// Synergy: YARA + running
 	if obj.IsRunning {
 		score += 15
-		obj.Reasons = append(obj.Reasons, "[YARA] 命中规则+运行中")
+		obj.Reasons = append(obj.Reasons, i18n.T("yara_fusion_hit_running"))
 	}
 
 	obj.YaraScore = score
@@ -176,7 +177,7 @@ func applyHits(obj *types.ExecutionObject, hits []YaraHit) {
 
 	// Add reasons
 	for _, hit := range hits {
-		reason := "[YARA] " + hit.RuleName
+		reason := i18n.T("yara_fusion_prefix") + " " + hit.RuleName
 		if len(hit.Tags) > 0 {
 			reason += " [" + strings.Join(hit.Tags, ",") + "]"
 		}

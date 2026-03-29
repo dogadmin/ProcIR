@@ -5,6 +5,7 @@ import (
 	"strings"
 	"unsafe"
 
+	"procir/internal/i18n"
 	"procir/internal/signature"
 	"procir/internal/types"
 
@@ -50,25 +51,25 @@ func collectModules(pids []uint32) []*types.ForensicEntry {
 			// Check: user directory DLL
 			if isUserDirPath(pathLower) {
 				suspicious = true
-				reasons = append(reasons, "用户目录DLL")
+				reasons = append(reasons, i18n.T("user_dir_dll"))
 			}
 
 			// Check: temp directory DLL
 			if isTempDirPath(pathLower) {
 				suspicious = true
-				reasons = append(reasons, "临时目录DLL")
+				reasons = append(reasons, i18n.T("temp_dir_dll"))
 			}
 
 			// Check: system DLL name from non-system path
 			if systemDLLs[modNameLower] && !isSystemPath(pathLower) {
 				suspicious = true
-				reasons = append(reasons, "系统DLL名伪装(非系统路径)")
+				reasons = append(reasons, i18n.T("sysdll_masquerade"))
 			}
 
 			// Check: DLL in ProgramData
 			if strings.HasPrefix(pathLower, `c:\programdata\`) {
 				suspicious = true
-				reasons = append(reasons, "ProgramData目录DLL")
+				reasons = append(reasons, i18n.T("programdata_exec"))
 			}
 
 			if !suspicious {
@@ -81,7 +82,7 @@ func collectModules(pids []uint32) []*types.ForensicEntry {
 			sigInfo := signature.Analyze(modPath)
 
 			if !sigInfo.Signed {
-				reasons = append(reasons, "未签名")
+				reasons = append(reasons, i18n.T("fore_unsigned"))
 			}
 
 			processName := pidNames[pid]
@@ -97,7 +98,7 @@ func collectModules(pids []uint32) []*types.ForensicEntry {
 				ModulePath:   modPath,
 				ModuleSigned: sigInfo.Signed,
 				ModuleSigner: sigInfo.Signer,
-				Detail:       fmt.Sprintf("可疑模块: %s (加载于 %s)", modName, processName),
+				Detail:       fmt.Sprintf(i18n.T("fore_susp_module"), modName, processName),
 			}
 
 			fe.Reasons = reasons

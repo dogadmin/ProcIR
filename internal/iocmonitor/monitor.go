@@ -10,6 +10,7 @@ import (
 	"time"
 	"unsafe"
 
+	"procir/internal/i18n"
 	"procir/internal/types"
 
 	"golang.org/x/sys/windows"
@@ -101,7 +102,7 @@ func (m *Monitor) LoadIOCs(text string) int {
 						Type:       "domain",
 						Confidence: entry.Confidence,
 						Source:     entry.Source,
-						Comment:    entry.Comment + " (域名解析: " + domain + " → " + ip + ")",
+						Comment:    entry.Comment + " (" + i18n.T("iocmon_dns_resolve") + domain + " → " + ip + ")",
 					}
 				}
 			}
@@ -116,10 +117,10 @@ func (m *Monitor) Start(durationSec int) error {
 	defer m.mu.Unlock()
 
 	if m.running {
-		return fmt.Errorf("监控已在运行中")
+		return fmt.Errorf("%s", i18n.T("iocmon_already_running"))
 	}
 	if len(m.iocs) == 0 {
-		return fmt.Errorf("未加载IOC（或域名解析失败）")
+		return fmt.Errorf("%s", i18n.T("iocmon_no_ioc"))
 	}
 
 	m.running = true
@@ -375,7 +376,7 @@ func (m *Monitor) pollOnce() {
 func getProcessName(pid uint32) string {
 	h, err := windows.OpenProcess(windows.PROCESS_QUERY_LIMITED_INFORMATION, false, pid)
 	if err != nil {
-		return fmt.Sprintf("PID:%d(已退出)", pid)
+		return fmt.Sprintf(i18n.T("iocmon_pid_exited"), pid)
 	}
 	defer windows.CloseHandle(h)
 

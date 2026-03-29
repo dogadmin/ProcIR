@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"procir/internal/i18n"
 	"procir/internal/types"
 )
 
@@ -96,9 +97,9 @@ func collectRecentFiles() []*types.ForensicEntry {
 			seen[pathLower] = true
 
 			age := now.Sub(info.ModTime())
-			ageLabel := "72小时内"
+			ageLabel := i18n.T("fore_72h")
 			if age < 24*time.Hour {
-				ageLabel = "24小时内"
+				ageLabel = i18n.T("fore_24h")
 			}
 
 			fe := &types.ForensicEntry{
@@ -107,7 +108,7 @@ func collectRecentFiles() []*types.ForensicEntry {
 				FileModTime: info.ModTime().Format("2006-01-02 15:04:05"),
 				FileSize:    info.Size(),
 				FileType:    fileType,
-				Detail:      fmt.Sprintf("最近%s修改: %s (%s, %d字节)", ageLabel, info.Name(), fileType, info.Size()),
+				Detail:      fmt.Sprintf(i18n.T("fore_recent_mod"), ageLabel, info.Name(), fileType, info.Size()),
 			}
 
 			results = append(results, fe)
