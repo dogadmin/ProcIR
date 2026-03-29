@@ -1,6 +1,7 @@
 # ProcIR - Windows 应急响应进程排查工具
 
 [![GitHub Release](https://img.shields.io/github/v/release/dogadmin/ProcIR)](https://github.com/dogadmin/ProcIR/releases/latest)
+**中文** | [English](README_EN.md)
 
 > 面向安全工程师的一键式应急响应工具，快速定位木马、后门、持久化、白加黑、内存注入等威胁。
 
@@ -34,6 +35,7 @@ ProcIR 是一个**非常驻、非 Agent、纯本地**的 Windows 应急响应排
 - **AI 智能分析**，集成 MiniMax 大模型，一键将扫描结果交给 AI 研判
 - **内嵌 Web UI**，自动打开浏览器，无需额外装 GUI 框架
 - **全中文界面**
+- **中英文双语**，支持 UI 一键切换，英文模式 AI 使用 Claude API
 
 ---
 

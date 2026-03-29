@@ -161,13 +161,15 @@ tr.risk-low { border-left: 3px solid #4caf50; opacity: 0.7; }
   <h1>ProcIR</h1>
   <button class="btn btn-primary" id="scanBtn" onclick="startScan()">开始扫描</button>
   <div class="separator"></div>
-  <button class="btn" onclick="copySHA256()">复制SHA256</button>
-  <button class="btn" onclick="openVT()">查询VT</button>
-  <button class="btn" onclick="copyVTLink()">复制VT链接</button>
-  <button class="btn" onclick="openDir()">打开目录</button>
-  <button class="btn" onclick="showDetail()">详情</button>
+  <button class="btn" onclick="copySHA256()" id="btnCopySHA">复制SHA256</button>
+  <button class="btn" onclick="openVT()" id="btnVT">查询VT</button>
+  <button class="btn" onclick="copyVTLink()" id="btnCopyVT">复制VT链接</button>
+  <button class="btn" onclick="openDir()" id="btnOpenDir">打开目录</button>
+  <button class="btn" onclick="showDetail()" id="btnDetail">详情</button>
   <div class="separator"></div>
-  <button class="btn" onclick="exportCSV()">导出CSV</button>
+  <button class="btn" onclick="exportCSV()" id="btnExport">导出CSV</button>
+  <div style="flex:1"></div>
+  <button class="btn" id="langToggle" onclick="toggleLang()" style="padding:4px 10px;font-size:12px;font-weight:bold">EN</button>
 </div>
 
 <div class="tab-bar">
@@ -187,16 +189,16 @@ tr.risk-low { border-left: 3px solid #4caf50; opacity: 0.7; }
 </div>
 
 <div class="filter-bar">
-  <label>筛选：</label>
+  <label id="lbl_filter">筛选：</label>
   <input id="filterInput" placeholder="搜索进程名、路径、SHA256、签发者、命令行..." oninput="applyFilter()">
-  <label>风险：</label>
+  <label id="lbl_risk">风险：</label>
   <select id="riskFilter" onchange="applyFilter()">
-    <option value="">全部</option>
-    <option value="Critical">严重</option>
-    <option value="High">高危</option>
-    <option value="Medium">中危</option>
-    <option value="Suspicious">可疑</option>
-    <option value="Low">低危</option>
+    <option value="" id="opt_all">全部</option>
+    <option value="Critical" id="opt_crit">严重</option>
+    <option value="High" id="opt_high">高危</option>
+    <option value="Medium" id="opt_med">中危</option>
+    <option value="Suspicious" id="opt_susp">可疑</option>
+    <option value="Low" id="opt_low">低危</option>
   </select>
 </div>
 
@@ -539,19 +541,19 @@ tr.risk-low { border-left: 3px solid #4caf50; opacity: 0.7; }
 
 <!-- Context Menu -->
 <div class="context-menu" id="ctxMenu">
-  <div class="item" onclick="copySHA256()">复制 SHA256</div>
-  <div class="item" onclick="copyMD5()">复制 MD5</div>
+  <div class="item" onclick="copySHA256()" id="ctx_sha">复制 SHA256</div>
+  <div class="item" onclick="copyMD5()" id="ctx_md5">复制 MD5</div>
   <div class="divider"></div>
-  <div class="item" onclick="openVT()">在 VirusTotal 中查询</div>
-  <div class="item" onclick="copyVTLink()">复制 VT 链接</div>
+  <div class="item" onclick="openVT()" id="ctx_vt">在 VirusTotal 中查询</div>
+  <div class="item" onclick="copyVTLink()" id="ctx_vtlink">复制 VT 链接</div>
   <div class="divider"></div>
-  <div class="item" onclick="openDir()">打开所在目录</div>
-  <div class="item" onclick="showDetail()">查看详情</div>
+  <div class="item" onclick="openDir()" id="ctx_dir">打开所在目录</div>
+  <div class="item" onclick="showDetail()" id="ctx_detail">查看详情</div>
   <div class="divider"></div>
-  <div class="item" onclick="filterParent()">按父进程筛选</div>
-  <div class="item" onclick="copyCmdLine()">复制命令行</div>
+  <div class="item" onclick="filterParent()" id="ctx_parent">按父进程筛选</div>
+  <div class="item" onclick="copyCmdLine()" id="ctx_cmd">复制命令行</div>
   <div class="divider"></div>
-  <div class="item" onclick="yaraScan()">YARA 扫描</div>
+  <div class="item" onclick="yaraScan()" id="ctx_yara">YARA 扫描</div>
 </div>
 
 <!-- Detail Modal -->
@@ -566,11 +568,358 @@ tr.risk-low { border-left: 3px solid #4caf50; opacity: 0.7; }
 </div>
 
 <script>
-const RL = { Critical:'严重', High:'高危', Medium:'中危', Suspicious:'可疑', Low:'低危' };
-const TT = { RunKey:'注册表自启', Startup:'启动文件夹', Task:'计划任务', Service:'系统服务', WMI:'WMI订阅', IFEO:'IFEO劫持', Winlogon:'Winlogon' };
-const FS = { Prefetch:'Prefetch', RecentFile:'最近文件', EventLog:'事件日志', Module:'加载模块' };
-const TLE = { execution:'执行', trigger:'触发器', file:'文件', network:'网络', module:'模块', eventlog:'日志' };
-const IOT = { ip:'IP', domain:'域名', url:'URL', base64:'Base64', filepath:'路径' };
+// --- i18n System ---
+let curLang = localStorage.getItem('procir_lang') || 'zh';
+
+const I18N = {
+zh: {
+  // Toolbar
+  startScan:'开始扫描', scanning:'扫描中...', copySHA:'复制SHA256', queryVT:'查询VT', copyVTLink:'复制VT链接',
+  openDir:'打开目录', detail:'详情', exportCSV:'导出CSV',
+  // Tabs
+  tab_process:'活跃进程', tab_trigger:'触发器', tab_execobj:'执行对象', tab_forensic:'历史取证',
+  tab_timeline:'时间线', tab_chain:'行为链', tab_ioc:'IOC', tab_event:'事件日志',
+  tab_module:'模块分析', tab_yara:'YARA', tab_memory:'内存分析', tab_iocmon:'IOC监控', tab_ai:'AI分析',
+  // Filter
+  filter:'筛选：', risk:'风险：', all:'全部', critical:'严重', high:'高危', medium:'中危', suspicious:'可疑', low:'低危',
+  filterPH:'搜索进程名、路径、SHA256、签发者、命令行...',
+  // Process columns
+  colRisk:'风险', colScore:'评分', colName:'进程名', colPID:'PID', colParent:'父进程', colPath:'路径',
+  colCmd:'命令行', colSHA:'SHA256', colSigner:'签名者', colNet:'网络', colPersist:'持久化', colReason:'风险原因',
+  // Trigger columns
+  colType:'类型', colTrigName:'名称', colDetail:'详情',
+  // Exec columns
+  colStatus:'状态', colLocation:'位置', colTriggers:'触发器', colSource:'来源',
+  // Forensic columns
+  colTime:'时间', colFileType:'文件类型',
+  // Timeline columns
+  colObject:'对象',
+  // Chain columns
+  colChain:'攻击链', colEvidence:'证据', colInvolved:'涉及对象',
+  // IOC columns
+  colValue:'值', colSrcObj:'来源对象', colContext:'上下文',
+  // Event columns
+  colEventID:'事件ID', colUser:'用户', colDesc:'描述', colProcTarget:'进程/目标',
+  // Module columns
+  colDLLHijack:'DLL劫持', colHostProc:'宿主进程', colProcSign:'进程签名', colSuspDLL:'可疑DLL', colHostPath:'宿主路径',
+  // Context menu
+  ctx_sha:'复制 SHA256', ctx_md5:'复制 MD5', ctx_vt:'在 VirusTotal 中查询', ctx_vtlink:'复制 VT 链接',
+  ctx_dir:'打开所在目录', ctx_detail:'查看详情', ctx_parent:'按父进程筛选', ctx_cmd:'复制命令行', ctx_yara:'YARA 扫描',
+  // Status
+  ready:'就绪 - 点击「开始扫描」', scanMsg:'正在扫描进程/触发器/历史痕迹，请稍候...', scanErr:'扫描出错: ',
+  showN:'显示 ', ofN:' / ', records:' 条记录',
+  copiedSHA:'已复制 SHA256', copiedMD5:'已复制 MD5', copiedVT:'已复制VT链接', copiedCmd:'已复制命令行',
+  dirOpened:'已打开目录', dirFail:'打开失败: ', error:'出错: ',
+  // Risk levels (for display)
+  rl:{ Critical:'严重', High:'高危', Medium:'中危', Suspicious:'可疑', Low:'低危' },
+  tt:{ RunKey:'注册表自启', Startup:'启动文件夹', Task:'计划任务', Service:'系统服务', WMI:'WMI订阅', IFEO:'IFEO劫持', Winlogon:'Winlogon' },
+  fs:{ Prefetch:'Prefetch', RecentFile:'最近文件', EventLog:'事件日志', Module:'加载模块' },
+  tle:{ execution:'执行', trigger:'触发器', file:'文件', network:'网络', module:'模块', eventlog:'日志' },
+  iot:{ ip:'IP', domain:'域名', url:'URL', base64:'Base64', filepath:'路径' },
+  // Render
+  localOnly:'仅本地', items:'项', running:'运行中', notRunning:'未运行', yes:'是', no:'否',
+  // Stats
+  statCrit:'严重:', statHigh:'高危:', statMed:'中危:', statSusp:'可疑:', statLow:'低危:',
+  statProc:'进程:', statTrig:'触发器:', statEvt:'事件:', statChain:'行为链:', statIOC:'IOC:',
+  // YARA
+  yaraEngine:'YARA 规则引擎', yaraNotLoaded:'未加载', yaraSelectFile:'选择规则文件', yaraOr:'或',
+  yaraPathPH:'输入规则文件/目录路径', yaraLoadPath:'加载路径', yaraScanAll:'开始扫描全部对象',
+  yaraEmpty:'加载 YARA 规则并扫描后，命中的对象将显示在此处', yaraScore:'YARA分', yaraRules:'命中规则',
+  yaraLoading:'加载中...', yaraRulesLoaded:'条规则已加载', yaraHits:'个命中',
+  yaraScanDone:'扫描完成！', yaraNoMatch:'未发现命中', yaraObjMatch:'个对象命中 YARA 规则',
+  // Memory
+  memTitle:'内存异常分析', memDesc:'针对指定 PID 进行内存布局深度检测', memPIDPH:'输入进程PID',
+  memStart:'开始分析', memClear:'清空结果', memAnalyzing:'分析中...', memAnalyzingPID:'正在分析PID ',
+  memLayout:' 的内存布局...', memDone:'分析完成', memErr:'分析出错: ', memEnterPID:'请输入PID', memInvalidPID:'无效的PID',
+  memSusp:'可疑内存区域', memAllExec:'所有可执行区域', memBase:'基地址', memSize:'大小',
+  memProtect:'保护', memType:'类型', memReason:'原因',
+  memProc:'进程:', memPath:'路径:', memUser:'用户:', memSign:'签名:',
+  memPrivExec:'私有可执行:', memNoImgExec:'非映像可执行:',
+  memHighRisk:'高危', memMedRisk:'中危', memSuspRisk:'可疑', memLowRisk:'低危',
+  // IOC Monitor
+  iocTitle:'IOC 动态命中监控', iocNotStarted:'未启动', iocInputPH:'输入IOC（一行一个，支持IP和域名）',
+  iocLoad:'加载IOC', iocImport:'导入文件', iocMinutes:'分钟', iocHours:'小时', iocSeconds:'秒',
+  iocStart:'开始监控', iocStop:'停止', iocLoaded:'已加载 ', iocCount:'个IOC',
+  iocElapsed:'已运行:', iocCycles:'轮询:', iocHits:'命中:', iocHitProcs:'命中进程:',
+  iocEmpty:'加载IOC并开始监控后，命中事件将显示在此处',
+  iocProcess:'进程', iocRemoteIP:'远程IP', iocPort:'端口', iocConfidence:'置信度', iocNotes:'备注',
+  iocMonitoring:'监控中', iocStopped:'已停止', iocCompleted:'已完成', iocNoIOC:'未加载IOC',
+  iocNoValid:'无有效IOC', iocEnterIOC:'请输入IOC', iocEnterFirst:'请先在左侧输入框中输入IOC（IP或域名）',
+  // AI
+  aiTitle:'MiniMax AI', aiReady:'就绪', aiKeyPH:'输入MiniMax API Key', aiModel:'模型:',
+  aiRememberKey:'记住Key', aiClearChat:'清空对话',
+  aiWelcomeTitle:'MiniMax AI 安全分析助手',
+  aiWelcomeMsg:'您可以直接输入问题，或点击下方「发送扫描数据」将扫描结果发送给AI分析',
+  aiWelcomeHint:'支持多轮对话 | M2.5 / M2.7 模型 | 申请Key: platform.minimax.io',
+  aiSendData:'发送扫描数据', aiSendBrief:'发送摘要', aiInputPH:'输入消息... (Ctrl+Enter 发送)', aiSend:'发送',
+  aiThinking:'思考中...', aiRequesting:'请求中', aiFailed:'失败', aiError:'出错', aiNoReturn:'(无返回)',
+  aiRound:'本轮:', aiTotal:'累计:', aiNeedKey:'请输入MiniMax API Key', aiNeedScan:'请先执行系统扫描',
+  // Detail modals
+  dtlDetail:'详情', dtlProcInfo:'进程信息', dtlFileInfo:'文件信息', dtlSignInfo:'签名信息',
+  dtlContextAnalysis:'上下文分析', dtlNetConn:'网络连接', dtlRiskAssess:'风险评估',
+  dtlProcName:'进程名', dtlPID:'PID', dtlParent:'父进程', dtlPath:'路径', dtlCmd:'命令行',
+  dtlUser:'用户', dtlStartTime:'启动时间', dtlSHA256:'SHA256', dtlMD5:'MD5',
+  dtlFileSize:'文件大小', dtlModTime:'修改时间', dtlSigned:'签名', dtlValid:'有效',
+  dtlSigner:'签发者', dtlCompany:'公司', dtlProduct:'产品', dtlOrigName:'原始文件名',
+  dtlLOLBin:'LOLBin', dtlPathAbnormal:'路径异常', dtlMasquerade:'文件名伪装',
+  dtlAbnormalParent:'异常父进程链', dtlHasNetwork:'有网络活动', dtlRemoteIP:'远程IP',
+  dtlPublicIP:'公网连接', dtlScore:'评分', dtlLevel:'等级', dtlReasons:'风险原因',
+  dtlBytes:'字节', dtlVTView:'在 VirusTotal 中查看',
+  dtlBasicInfo:'基本信息', dtlType:'类型', dtlExists:'存在', dtlSources:'来源',
+  dtlExecScore:'进程评分', dtlTrigScore:'触发器评分', dtlForeScore:'取证评分',
+  dtlYaraScore:'YARA评分', dtlEvtScore:'事件评分', dtlModScore:'模块评分',
+  dtlSynergy:'组合加权', dtlWhiteReduce:'白特征抵消', dtlFinalScore:'最终评分',
+  dtlScoreCompose:'评分构成', dtlNetInfo:'网络',
+  dtlHostProc:'宿主进程', dtlTotalMod:'总模块数', dtlSuspMod:'可疑模块数',
+  dtlDLLDetect:'DLL劫持检测', dtlDLLHijack:'DLL劫持', dtlDLLDetected:'检测到DLL劫持',
+  dtlDLLScore:'DLL劫持评分', dtlSuspModules:'可疑模块', dtlDLLPath:'DLL路径',
+  dtlDLLModScore:'DLL评分', dtlUnsigned:'未签名', dtlSysDLLName:'系统DLL名',
+  dtlUserDir:'用户目录', dtlTempDir:'临时目录', dtlSameDirLoad:'同目录加载', dtlTags:'标记', dtlReason:'原因',
+  dtlTaskInfo:'计划任务详情', dtlServiceInfo:'服务详情', dtlWMIInfo:'WMI详情',
+  dtlAuthor:'作者', dtlTrigType:'触发方式', dtlRunAs:'运行账户', dtlHidden:'隐藏',
+  dtlInterval:'执行间隔', dtlLastRun:'上次运行', dtlNextRun:'下次运行',
+  dtlStartType:'启动类型', dtlSvcAccount:'运行账户', dtlSvcState:'状态',
+  dtlWMIFilter:'过滤器', dtlWMIQuery:'过滤查询', dtlWMIConsumer:'消费者', dtlWMICmd:'消费者命令',
+  dtlEvtInfo:'事件信息', dtlEvtID:'事件ID', dtlComputer:'计算机',
+  dtlProcPath:'进程路径', dtlParentProc:'父进程',
+  dtlTargetInfo:'目标信息', dtlTargetPath:'目标路径', dtlSvcName:'服务名', dtlTaskName:'任务名',
+  dtlNetLogin:'网络/登录', dtlIPAddr:'IP地址', dtlPort:'端口', dtlDomain:'域名', dtlLogonType:'登录类型',
+  dtlLinkedObj:'关联对象', dtlLinkedExecObj:'关联ExecutionObject',
+  dtlPrefetchInfo:'Prefetch信息', dtlExeName:'可执行文件名', dtlLastRunTime:'最后执行时间',
+  dtlFirstSeen:'首次发现', dtlEvtLog:'事件日志', dtlEvtSource:'事件源',
+  dtlModInfo:'模块信息', dtlModPath:'模块路径',
+  // AI scan data
+  aiDataIntro:'以下是ProcIR扫描结果，请进行全面安全分析：',
+  aiOverall:'总体统计', aiHighProc:'高风险进程', aiMedProc:'中危进程', aiSuspTrig:'可疑触发器',
+  aiBehavior:'行为链', aiHighExec:'高危执行对象', aiSuspMod:'可疑模块/DLL劫持',
+  aiSuspFore:'可疑历史取证', aiHighEvt:'高危事件',
+  aiSigned:'签名:', aiUnsigned:'[未签名]', aiPublic:'[公网]', aiRunning:'[运行中]', aiNotRunning:'[未运行]',
+  aiHostUnsigned:'[宿主未签名]', aiHasNet:'[有网络]', aiYaraHit:'[YARA命中]', aiDLLHijack:'[DLL劫持]',
+  aiScoreBreak:'评分构成:', aiExec:'执行', aiTrig:'触发', aiForensic:'取证', aiEvent:'事件', aiModule:'模块',
+  aiReasonLabel:'原因:', aiSuspDLL:'可疑DLL:', aiTime:'时间:',
+  aiBriefIntro:'扫描摘要', aiBriefHighProc:'高风险进程:', aiBriefQuestion:'请分析这些结果，有什么安全问题？',
+  aiProcess:'进程:', aiTrigger:'触发器:', aiChain:'行为链:',
+},
+en: {
+  startScan:'Start Scan', scanning:'Scanning...', copySHA:'Copy SHA256', queryVT:'Query VT', copyVTLink:'Copy VT Link',
+  openDir:'Open Dir', detail:'Details', exportCSV:'Export CSV',
+  tab_process:'Processes', tab_trigger:'Triggers', tab_execobj:'Exec Objects', tab_forensic:'Forensics',
+  tab_timeline:'Timeline', tab_chain:'Attack Chains', tab_ioc:'IOC', tab_event:'Events',
+  tab_module:'Modules', tab_yara:'YARA', tab_memory:'Memory', tab_iocmon:'IOC Monitor', tab_ai:'AI Analysis',
+  filter:'Filter:', risk:'Risk:', all:'All', critical:'Critical', high:'High', medium:'Medium', suspicious:'Suspicious', low:'Low',
+  filterPH:'Search process name, path, SHA256, signer, command line...',
+  colRisk:'Risk', colScore:'Score', colName:'Process', colPID:'PID', colParent:'Parent', colPath:'Path',
+  colCmd:'Command Line', colSHA:'SHA256', colSigner:'Signer', colNet:'Network', colPersist:'Persist', colReason:'Risk Reason',
+  colType:'Type', colTrigName:'Name', colDetail:'Details',
+  colStatus:'Status', colLocation:'Location', colTriggers:'Triggers', colSource:'Source',
+  colTime:'Time', colFileType:'File Type',
+  colObject:'Object',
+  colChain:'Attack Chain', colEvidence:'Evidence', colInvolved:'Objects',
+  colValue:'Value', colSrcObj:'Source Object', colContext:'Context',
+  colEventID:'Event ID', colUser:'User', colDesc:'Description', colProcTarget:'Process/Target',
+  colDLLHijack:'DLL Hijack', colHostProc:'Host Process', colProcSign:'Proc Signed', colSuspDLL:'Susp DLL', colHostPath:'Host Path',
+  ctx_sha:'Copy SHA256', ctx_md5:'Copy MD5', ctx_vt:'Query on VirusTotal', ctx_vtlink:'Copy VT Link',
+  ctx_dir:'Open Directory', ctx_detail:'View Details', ctx_parent:'Filter by Parent', ctx_cmd:'Copy Command Line', ctx_yara:'YARA Scan',
+  ready:'Ready - Click "Start Scan"', scanMsg:'Scanning processes/triggers/forensics, please wait...', scanErr:'Scan error: ',
+  showN:'Showing ', ofN:' / ', records:' records',
+  copiedSHA:'SHA256 copied', copiedMD5:'MD5 copied', copiedVT:'VT link copied', copiedCmd:'Command line copied',
+  dirOpened:'Directory opened', dirFail:'Open failed: ', error:'Error: ',
+  rl:{ Critical:'Critical', High:'High', Medium:'Medium', Suspicious:'Suspicious', Low:'Low' },
+  tt:{ RunKey:'Run Key', Startup:'Startup Folder', Task:'Sched Task', Service:'Service', WMI:'WMI Sub', IFEO:'IFEO Hijack', Winlogon:'Winlogon' },
+  fs:{ Prefetch:'Prefetch', RecentFile:'Recent File', EventLog:'Event Log', Module:'Module' },
+  tle:{ execution:'Exec', trigger:'Trigger', file:'File', network:'Network', module:'Module', eventlog:'Log' },
+  iot:{ ip:'IP', domain:'Domain', url:'URL', base64:'Base64', filepath:'Path' },
+  localOnly:'local only', items:'items', running:'Running', notRunning:'Stopped', yes:'Yes', no:'No',
+  statCrit:'Crit:', statHigh:'High:', statMed:'Med:', statSusp:'Susp:', statLow:'Low:',
+  statProc:'Proc:', statTrig:'Trig:', statEvt:'Events:', statChain:'Chains:', statIOC:'IOC:',
+  yaraEngine:'YARA Rule Engine', yaraNotLoaded:'Not Loaded', yaraSelectFile:'Select Rule File', yaraOr:'or',
+  yaraPathPH:'Enter rule file/directory path', yaraLoadPath:'Load Path', yaraScanAll:'Scan All Objects',
+  yaraEmpty:'Load YARA rules and scan to see matched objects here', yaraScore:'YARA', yaraRules:'Matched Rules',
+  yaraLoading:'Loading...', yaraRulesLoaded:' rules loaded', yaraHits:' hits',
+  yaraScanDone:'Scan complete! ', yaraNoMatch:'No matches found', yaraObjMatch:' objects matched YARA rules',
+  memTitle:'Memory Anomaly Analysis', memDesc:'Deep memory layout detection for specified PID', memPIDPH:'Enter PID',
+  memStart:'Analyze', memClear:'Clear', memAnalyzing:'Analyzing...', memAnalyzingPID:'Analyzing PID ',
+  memLayout:' memory layout...', memDone:'Analysis complete', memErr:'Analysis error: ', memEnterPID:'Enter PID', memInvalidPID:'Invalid PID',
+  memSusp:'Suspicious Memory Regions', memAllExec:'All Executable Regions', memBase:'Base Address', memSize:'Size',
+  memProtect:'Protection', memType:'Type', memReason:'Reason',
+  memProc:'Process:', memPath:'Path:', memUser:'User:', memSign:'Signature:',
+  memPrivExec:'Private Exec:', memNoImgExec:'No-Image Exec:',
+  memHighRisk:'High', memMedRisk:'Medium', memSuspRisk:'Suspicious', memLowRisk:'Low',
+  iocTitle:'IOC Dynamic Monitor', iocNotStarted:'Not Started', iocInputPH:'Enter IOC (one per line, IP or domain)',
+  iocLoad:'Load IOC', iocImport:'Import File', iocMinutes:'Minutes', iocHours:'Hours', iocSeconds:'Seconds',
+  iocStart:'Start Monitor', iocStop:'Stop', iocLoaded:'Loaded ', iocCount:' IOCs',
+  iocElapsed:'Elapsed:', iocCycles:'Cycles:', iocHits:'Hits:', iocHitProcs:'Hit Procs:',
+  iocEmpty:'Load IOC and start monitoring to see hit events here',
+  iocProcess:'Process', iocRemoteIP:'Remote IP', iocPort:'Port', iocConfidence:'Confidence', iocNotes:'Notes',
+  iocMonitoring:'Monitoring', iocStopped:'Stopped', iocCompleted:'Completed', iocNoIOC:'No IOC loaded',
+  iocNoValid:'No valid IOC', iocEnterIOC:'Please enter IOC', iocEnterFirst:'Please enter IOC (IP or domain) in the input box first',
+  aiTitle:'Claude AI', aiReady:'Ready', aiKeyPH:'Enter Anthropic API Key', aiModel:'Model:',
+  aiRememberKey:'Save Key', aiClearChat:'Clear Chat',
+  aiWelcomeTitle:'Claude AI Security Analyst',
+  aiWelcomeMsg:'Ask questions directly, or click "Send Scan Data" to send scan results to AI for analysis',
+  aiWelcomeHint:'Multi-turn dialogue | Claude Sonnet / Opus | Get Key: console.anthropic.com',
+  aiSendData:'Send Scan Data', aiSendBrief:'Send Summary', aiInputPH:'Enter message... (Ctrl+Enter to send)', aiSend:'Send',
+  aiThinking:'Thinking...', aiRequesting:'Requesting', aiFailed:'Failed', aiError:'Error', aiNoReturn:'(No response)',
+  aiRound:'Round:', aiTotal:'Total:', aiNeedKey:'Please enter Anthropic API Key', aiNeedScan:'Please run a scan first',
+  dtlDetail:'Details', dtlProcInfo:'Process Information', dtlFileInfo:'File Information', dtlSignInfo:'Signature',
+  dtlContextAnalysis:'Context Analysis', dtlNetConn:'Network Connections', dtlRiskAssess:'Risk Assessment',
+  dtlProcName:'Process', dtlPID:'PID', dtlParent:'Parent', dtlPath:'Path', dtlCmd:'Command Line',
+  dtlUser:'User', dtlStartTime:'Start Time', dtlSHA256:'SHA256', dtlMD5:'MD5',
+  dtlFileSize:'File Size', dtlModTime:'Modified', dtlSigned:'Signed', dtlValid:'Valid',
+  dtlSigner:'Signer', dtlCompany:'Company', dtlProduct:'Product', dtlOrigName:'Original Name',
+  dtlLOLBin:'LOLBin', dtlPathAbnormal:'Path Abnormal', dtlMasquerade:'Name Masquerade',
+  dtlAbnormalParent:'Abnormal Parent Chain', dtlHasNetwork:'Network Activity', dtlRemoteIP:'Remote IP',
+  dtlPublicIP:'Public IP', dtlScore:'Score', dtlLevel:'Level', dtlReasons:'Risk Reasons',
+  dtlBytes:'bytes', dtlVTView:'View on VirusTotal',
+  dtlBasicInfo:'Basic Info', dtlType:'Type', dtlExists:'Exists', dtlSources:'Sources',
+  dtlExecScore:'Execution Score', dtlTrigScore:'Trigger Score', dtlForeScore:'Forensic Score',
+  dtlYaraScore:'YARA Score', dtlEvtScore:'Event Score', dtlModScore:'Module Score',
+  dtlSynergy:'Synergy Bonus', dtlWhiteReduce:'White Reduction', dtlFinalScore:'Final Score',
+  dtlScoreCompose:'Score Composition', dtlNetInfo:'Network',
+  dtlHostProc:'Host Process', dtlTotalMod:'Total Modules', dtlSuspMod:'Suspicious Modules',
+  dtlDLLDetect:'DLL Hijack Detection', dtlDLLHijack:'DLL Hijack', dtlDLLDetected:'DLL Hijack Detected',
+  dtlDLLScore:'DLL Hijack Score', dtlSuspModules:'Suspicious Modules', dtlDLLPath:'DLL Path',
+  dtlDLLModScore:'DLL Score', dtlUnsigned:'Unsigned', dtlSysDLLName:'System DLL Name',
+  dtlUserDir:'User Directory', dtlTempDir:'Temp Directory', dtlSameDirLoad:'Same Dir Load', dtlTags:'Tags', dtlReason:'Reason',
+  dtlTaskInfo:'Scheduled Task', dtlServiceInfo:'Service Details', dtlWMIInfo:'WMI Details',
+  dtlAuthor:'Author', dtlTrigType:'Trigger Type', dtlRunAs:'Run As', dtlHidden:'Hidden',
+  dtlInterval:'Interval', dtlLastRun:'Last Run', dtlNextRun:'Next Run',
+  dtlStartType:'Start Type', dtlSvcAccount:'Account', dtlSvcState:'State',
+  dtlWMIFilter:'Filter', dtlWMIQuery:'Filter Query', dtlWMIConsumer:'Consumer', dtlWMICmd:'Consumer Command',
+  dtlEvtInfo:'Event Information', dtlEvtID:'Event ID', dtlComputer:'Computer',
+  dtlProcPath:'Process Path', dtlParentProc:'Parent Process',
+  dtlTargetInfo:'Target Info', dtlTargetPath:'Target Path', dtlSvcName:'Service Name', dtlTaskName:'Task Name',
+  dtlNetLogin:'Network/Logon', dtlIPAddr:'IP Address', dtlPort:'Port', dtlDomain:'Domain', dtlLogonType:'Logon Type',
+  dtlLinkedObj:'Related Objects', dtlLinkedExecObj:'Related ExecutionObject',
+  dtlPrefetchInfo:'Prefetch Info', dtlExeName:'Executable', dtlLastRunTime:'Last Run Time',
+  dtlFirstSeen:'First Seen', dtlEvtLog:'Event Log', dtlEvtSource:'Event Source',
+  dtlModInfo:'Module Info', dtlModPath:'Module Path',
+  aiDataIntro:'Below is the ProcIR scan result. Please conduct a comprehensive security analysis:',
+  aiOverall:'Overall Statistics', aiHighProc:'High-Risk Processes', aiMedProc:'Medium-Risk Processes', aiSuspTrig:'Suspicious Triggers',
+  aiBehavior:'Behavior Chains', aiHighExec:'High-Risk Execution Objects', aiSuspMod:'Suspicious Modules/DLL Hijack',
+  aiSuspFore:'Suspicious Forensics', aiHighEvt:'High-Risk Events',
+  aiSigned:'Signed:', aiUnsigned:'[Unsigned]', aiPublic:'[Public IP]', aiRunning:'[Running]', aiNotRunning:'[Not Running]',
+  aiHostUnsigned:'[Host Unsigned]', aiHasNet:'[Network]', aiYaraHit:'[YARA Hit]', aiDLLHijack:'[DLL Hijack]',
+  aiScoreBreak:'Scores:', aiExec:'Exec', aiTrig:'Trig', aiForensic:'Fore', aiEvent:'Event', aiModule:'Module',
+  aiReasonLabel:'Reason:', aiSuspDLL:'Susp DLL:', aiTime:'Time:',
+  aiBriefIntro:'Scan Summary', aiBriefHighProc:'High-Risk Processes:', aiBriefQuestion:'Please analyze these results. What security issues exist?',
+  aiProcess:'Proc:', aiTrigger:'Trig:', aiChain:'Chains:',
+}
+};
+
+function t(k) { return (I18N[curLang]||I18N.zh)[k] || I18N.zh[k] || k; }
+
+// Dynamic translation maps (updated on language switch)
+let RL, TT, FS, TLE, IOT;
+function updateLangMaps() {
+  const L = I18N[curLang] || I18N.zh;
+  RL = L.rl; TT = L.tt; FS = L.fs; TLE = L.tle; IOT = L.iot;
+}
+updateLangMaps();
+
+function setLang(lang) {
+  curLang = lang;
+  localStorage.setItem('procir_lang', lang);
+  updateLangMaps();
+  const L = I18N[lang];
+
+  // Page title
+  document.title = lang==='en' ? 'ProcIR - Windows Incident Response Tool' : 'ProcIR - Windows 应急响应进程排查工具';
+
+  // Toggle button
+  document.getElementById('langToggle').textContent = lang==='en' ? '中文' : 'EN';
+
+  // Toolbar
+  if (!document.getElementById('scanBtn').disabled) document.getElementById('scanBtn').textContent = L.startScan;
+  document.getElementById('btnCopySHA').textContent = L.copySHA;
+  document.getElementById('btnVT').textContent = L.queryVT;
+  document.getElementById('btnCopyVT').textContent = L.copyVTLink;
+  document.getElementById('btnOpenDir').textContent = L.openDir;
+  document.getElementById('btnDetail').textContent = L.detail;
+  document.getElementById('btnExport').textContent = L.exportCSV;
+
+  // Tabs (preserve badges)
+  const tabs = ['process','trigger','execobj','forensic','timeline','chain','ioc','event','module','yara','memory','iocmon','ai'];
+  tabs.forEach(id => {
+    const el = document.getElementById('tab_'+id);
+    const badge = el.querySelector('.badge');
+    const badgeHTML = badge ? ' ' + badge.outerHTML : '';
+    el.innerHTML = L['tab_'+id] + badgeHTML;
+  });
+
+  // Filter bar
+  document.getElementById('lbl_filter').textContent = L.filter;
+  document.getElementById('lbl_risk').textContent = L.risk;
+  document.getElementById('filterInput').placeholder = L.filterPH;
+  document.getElementById('opt_all').textContent = L.all;
+  document.getElementById('opt_crit').textContent = L.critical;
+  document.getElementById('opt_high').textContent = L.high;
+  document.getElementById('opt_med').textContent = L.medium;
+  document.getElementById('opt_susp').textContent = L.suspicious;
+  document.getElementById('opt_low').textContent = L.low;
+
+  // Column headers - Process
+  const procTH = document.querySelectorAll('#view_process thead th');
+  if (procTH.length>=12) {
+    [L.colRisk,L.colScore,L.colName,'PID',L.colParent,L.colPath,L.colCmd,L.colSHA,L.colSigner,L.colNet,L.colPersist,L.colReason].forEach((txt,i) => {
+      const sa = procTH[i].querySelector('.sa');
+      procTH[i].textContent = txt;
+      if (sa) procTH[i].appendChild(sa);
+    });
+  }
+  // Trigger
+  const trigTH = document.querySelectorAll('#view_trigger thead th');
+  if (trigTH.length>=7) [L.colScore,L.colType,L.colTrigName,L.colPath,L.colCmd,L.colDetail,L.colReason].forEach((txt,i) => { const sa=trigTH[i].querySelector('.sa'); trigTH[i].textContent=txt; if(sa)trigTH[i].appendChild(sa); });
+  // Exec
+  const execTH = document.querySelectorAll('#view_execobj thead th');
+  if (execTH.length>=10) [L.colRisk,L.colScore,L.colStatus,L.colPath,L.colLocation,L.colSigner,L.colTriggers,L.colSource,L.colNet,L.colReason].forEach((txt,i) => { const sa=execTH[i].querySelector('.sa'); execTH[i].textContent=txt; if(sa)execTH[i].appendChild(sa); });
+  // Forensic
+  const foreTH = document.querySelectorAll('#view_forensic thead th');
+  if (foreTH.length>=7) [L.colScore,L.colSource,L.colPath,L.colDetail,L.colTime,L.colFileType,L.colReason].forEach((txt,i) => { const sa=foreTH[i].querySelector('.sa'); foreTH[i].textContent=txt; if(sa)foreTH[i].appendChild(sa); });
+  // Timeline
+  const tlTH = document.querySelectorAll('#view_timeline thead th');
+  if (tlTH.length>=6) [L.colTime,L.colType,L.colScore,L.colObject,L.colDetail,L.colSource].forEach((txt,i) => { const sa=tlTH[i].querySelector('.sa'); tlTH[i].textContent=txt; if(sa)tlTH[i].appendChild(sa); });
+  // Chain
+  const chainTH = document.querySelectorAll('#view_chain thead th');
+  if (chainTH.length>=4) [L.colScore,L.colChain,L.colEvidence,L.colInvolved].forEach((txt,i) => { chainTH[i].textContent=txt; });
+  // IOC
+  const iocTH = document.querySelectorAll('#view_ioc thead th');
+  if (iocTH.length>=4) [L.colType,L.colValue,L.colSrcObj,L.colContext].forEach((txt,i) => { const sa=iocTH[i].querySelector('.sa'); iocTH[i].textContent=txt; if(sa)iocTH[i].appendChild(sa); });
+  // Event
+  const evtTH = document.querySelectorAll('#view_event thead th');
+  if (evtTH.length>=8) [L.colScore,L.colTime,L.colEventID,L.colSource,L.colUser,L.colDesc,L.colProcTarget,L.colReason].forEach((txt,i) => { const sa=evtTH[i].querySelector('.sa'); evtTH[i].textContent=txt; if(sa)evtTH[i].appendChild(sa); });
+  // Module
+  const modTH = document.querySelectorAll('#view_module thead th');
+  if (modTH.length>=8) [L.colScore,L.colDLLHijack,L.colHostProc,'PID',L.colProcSign,L.colSuspDLL,L.colHostPath,L.colReason].forEach((txt,i) => { const sa=modTH[i].querySelector('.sa'); modTH[i].textContent=txt; if(sa)modTH[i].appendChild(sa); });
+
+  // Context menu
+  document.getElementById('ctx_sha').textContent = L.ctx_sha;
+  document.getElementById('ctx_md5').textContent = L.ctx_md5;
+  document.getElementById('ctx_vt').textContent = L.ctx_vt;
+  document.getElementById('ctx_vtlink').textContent = L.ctx_vtlink;
+  document.getElementById('ctx_dir').textContent = L.ctx_dir;
+  document.getElementById('ctx_detail').textContent = L.ctx_detail;
+  document.getElementById('ctx_parent').textContent = L.ctx_parent;
+  document.getElementById('ctx_cmd').textContent = L.ctx_cmd;
+  document.getElementById('ctx_yara').textContent = L.ctx_yara;
+
+  // Status bar
+  document.getElementById('statusText').textContent = L.ready;
+
+  // AI panel - switch provider
+  updateAIPanel(lang);
+
+  // Re-render
+  updateStats();
+  render();
+}
+
+function toggleLang() {
+  setLang(curLang === 'zh' ? 'en' : 'zh');
+}
+
+// Apply saved language on load
+document.addEventListener('DOMContentLoaded', function() { if (curLang !== 'zh') setLang(curLang); });
 
 let currentView = 'process';
 let allProc=[], allTrig=[], allExec=[], allFore=[], allTL=[], allChain=[], allIOC=[], allEvt=[], allMod=[];
@@ -581,8 +930,8 @@ let sortState = { process:{field:'RiskScore',asc:false}, trigger:{field:'Score',
 
 async function startScan() {
   const btn = document.getElementById('scanBtn');
-  btn.disabled = true; btn.textContent = '扫描中...';
-  document.getElementById('statusText').textContent = '正在扫描进程/触发器/历史痕迹，请稍候...';
+  btn.disabled = true; btn.textContent = t('scanning');
+  document.getElementById('statusText').textContent = t('scanMsg');
   document.getElementById('progressBar').classList.add('scanning');
 
   try {
@@ -590,10 +939,10 @@ async function startScan() {
     const data = await resp.json();
     if (data.status === 'done') await loadAll();
   } catch(e) {
-    document.getElementById('statusText').textContent = '扫描出错: ' + e.message;
+    document.getElementById('statusText').textContent = t('scanErr') + e.message;
   }
 
-  btn.disabled = false; btn.textContent = '开始扫描';
+  btn.disabled = false; btn.textContent = t('startScan');
   document.getElementById('progressBar').classList.remove('scanning');
 }
 
@@ -723,7 +1072,7 @@ function render() {
   (renderers[currentView]||renderProc)();
   const totals = {process:allProc.length, trigger:allTrig.length, execobj:allExec.length, forensic:allFore.length, timeline:allTL.length, chain:allChain.length, ioc:allIOC.length, event:allEvt.length, module:allMod.length};
   const showns = {process:filtProc.length, trigger:filtTrig.length, execobj:filtExec.length, forensic:filtFore.length, timeline:filtTL.length, chain:filtChain.length, ioc:filtIOC.length, event:filtEvt.length, module:filtMod.length};
-  document.getElementById('statusText').textContent = '显示 ' + showns[currentView] + ' / ' + totals[currentView] + ' 条记录';
+  document.getElementById('statusText').textContent = t('showN') + showns[currentView] + t('ofN') + totals[currentView] + t('records');
 }
 
 function renderProc() {
@@ -737,7 +1086,7 @@ function renderProc() {
     tr.ondblclick = () => { sel(i); showDetail(); };
     const sha = r.SHA256 ? r.SHA256.substring(0,16)+'...' : '';
     const par = r.ParentName ? r.ParentName+'('+r.PPID+')' : String(r.PPID);
-    const net = r.HasNetwork ? ((r.RemoteIPs||[]).join(',')||'仅本地') : '';
+    const net = r.HasNetwork ? ((r.RemoteIPs||[]).join(',')||t('localOnly')) : '';
     const pers = (r.Persistence||[]).length;
     tr.innerHTML =
       '<td>'+esc(RL[r.RiskLevel]||r.RiskLevel)+'</td><td>'+r.RiskScore+'</td>'+
@@ -747,7 +1096,7 @@ function renderProc() {
       '<td title="'+esc(r.CommandLine)+'">'+esc(r.CommandLine)+'</td>'+
       '<td title="'+esc(r.SHA256)+'">'+esc(sha)+'</td>'+
       '<td title="'+esc(r.Signer)+'">'+esc(r.Signer)+'</td>'+
-      '<td>'+esc(net)+'</td><td>'+(pers>0?pers+' 项':'')+'</td>'+
+      '<td>'+esc(net)+'</td><td>'+(pers>0?pers+' '+t('items'):'')+'</td>'+
       '<td title="'+esc((r.Reasons||[]).join('; '))+'">'+esc((r.Reasons||[]).join('; '))+'</td>';
     f.appendChild(tr);
   });
@@ -786,13 +1135,12 @@ function renderExec() {
     if (i===selIdx) tr.classList.add('selected');
     tr.onclick = () => sel(i); tr.oncontextmenu = ev => { sel(i); ctxMenu(ev); };
     tr.ondblclick = () => { sel(i); showExecDetail(i); };
-    const status = e.IsRunning ? '运行中' : '未运行';
-    const trigs = (e.TriggerTypes||[]).map(t=>TT[t]||t).join('+');
+    const trigs = (e.TriggerTypes||[]).map(tp=>TT[tp]||tp).join('+');
     const srcs = (e.Sources||[]).join(', ');
-    const net = e.NetworkObserved ? ((e.RemoteIPs||[]).join(',')||'是') : '';
+    const net = e.NetworkObserved ? ((e.RemoteIPs||[]).join(',')||t('yes')) : '';
     tr.innerHTML =
       '<td>'+esc(RL[e.RiskLevel]||e.RiskLevel)+'</td><td>'+e.FinalScore+'</td>'+
-      '<td>'+(e.IsRunning?'<span class="tag tag-red">运行中</span>':'<span class="tag tag-blue">未运行</span>')+'</td>'+
+      '<td>'+(e.IsRunning?'<span class="tag tag-red">'+t('running')+'</span>':'<span class="tag tag-blue">'+t('notRunning')+'</span>')+'</td>'+
       '<td title="'+esc(e.Path)+'">'+esc(e.Path)+'</td>'+
       '<td>'+esc(e.LocationType)+'</td>'+
       '<td title="'+esc(e.Signer)+'">'+esc(e.Signer)+'</td>'+
@@ -1011,20 +1359,20 @@ function countRiskLevels() {
 function updateStats() {
   const {c,h,m,s,l} = countRiskLevels();
   document.getElementById('statsText').innerHTML =
-    '<span class="critical">严重:'+c+'</span><span class="high">高危:'+h+'</span>'+
-    '<span class="medium">中危:'+m+'</span><span class="suspicious">可疑:'+s+'</span>'+
-    '<span>低危:'+l+'</span><span>进程:'+allProc.length+' 触发器:'+allTrig.length+' 事件:'+allEvt.length+' 行为链:'+allChain.length+' IOC:'+allIOC.length+'</span>';
+    '<span class="critical">'+t('statCrit')+c+'</span><span class="high">'+t('statHigh')+h+'</span>'+
+    '<span class="medium">'+t('statMed')+m+'</span><span class="suspicious">'+t('statSusp')+s+'</span>'+
+    '<span>'+t('statLow')+l+'</span><span>'+t('statProc')+allProc.length+' '+t('statTrig')+allTrig.length+' '+t('statEvt')+allEvt.length+' '+t('statChain')+allChain.length+' '+t('statIOC')+allIOC.length+'</span>';
 }
 
 function ctxMenu(e) { e.preventDefault(); const m=document.getElementById('ctxMenu'); m.classList.add('show'); m.style.left=e.clientX+'px'; m.style.top=e.clientY+'px'; const r=m.getBoundingClientRect(); if(r.right>window.innerWidth)m.style.left=(e.clientX-r.width)+'px'; if(r.bottom>window.innerHeight)m.style.top=(e.clientY-r.height)+'px'; }
 document.addEventListener('click', ()=>document.getElementById('ctxMenu').classList.remove('show'));
 
-function copySHA256() { const s=getSelectedPath(); if(s&&s.sha){navigator.clipboard.writeText(s.sha);flash('已复制 SHA256');} }
-function copyMD5() { const s=getSelectedPath(); if(s&&s.md5){navigator.clipboard.writeText(s.md5);flash('已复制 MD5');} }
+function copySHA256() { const s=getSelectedPath(); if(s&&s.sha){navigator.clipboard.writeText(s.sha);flash(t('copiedSHA'));} }
+function copyMD5() { const s=getSelectedPath(); if(s&&s.md5){navigator.clipboard.writeText(s.md5);flash(t('copiedMD5'));} }
 function openVT() { const s=getSelectedPath(); if(s&&s.sha) window.open('https://www.virustotal.com/gui/file/'+s.sha,'_blank'); }
-function copyVTLink() { const s=getSelectedPath(); if(s&&s.sha){navigator.clipboard.writeText('https://www.virustotal.com/gui/file/'+s.sha);flash('已复制VT链接');} }
-async function openDir() { const s=getSelectedPath(); if(s&&s.path){try{const r=await fetch('/api/opendir',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:s.path})});const d=await r.json();flash(d.ok?'已打开目录':'打开失败: '+(d.error||''));}catch(e){flash('出错: '+e.message);}} }
-function copyCmdLine() { const s=getSelectedPath(); if(s&&s.cmd){navigator.clipboard.writeText(s.cmd);flash('已复制命令行');} }
+function copyVTLink() { const s=getSelectedPath(); if(s&&s.sha){navigator.clipboard.writeText('https://www.virustotal.com/gui/file/'+s.sha);flash(t('copiedVT'));} }
+async function openDir() { const s=getSelectedPath(); if(s&&s.path){try{const r=await fetch('/api/opendir',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:s.path})});const d=await r.json();flash(d.ok?t('dirOpened'):t('dirFail')+(d.error||''));}catch(e){flash(t('error')+e.message);}} }
+function copyCmdLine() { const s=getSelectedPath(); if(s&&s.cmd){navigator.clipboard.writeText(s.cmd);flash(t('copiedCmd'));} }
 function filterParent() { if(currentView==='process'){const r=getSelProc();if(r&&r.ParentName){document.getElementById('filterInput').value=r.ParentName;applyFilter();}} }
 // --- IOC Monitor Logic ---
 
@@ -1521,15 +1869,15 @@ function showDetail() {
 
 function showProcDetail() {
   const r = getSelProc(); if (!r) return;
-  document.getElementById('modalTitle').textContent = '进程详情: ' + r.Name + ' (PID ' + r.PID + ')';
+  document.getElementById('modalTitle').textContent = t('dtlProcInfo') + ': ' + r.Name + ' (PID ' + r.PID + ')';
   let h = '';
-  h += sec('进程信息', [['进程名',r.Name],['PID',r.PID],['父进程',r.PPID+(r.ParentName?' ('+r.ParentName+')':'')],['路径',r.Path,1],['命令行',r.CommandLine,1],['用户',r.User],['启动时间',r.StartTime]]);
-  h += sec('文件信息', [['SHA256',r.SHA256,1],['MD5',r.MD5,1],['文件大小',r.FileSize?r.FileSize+' 字节':''],['修改时间',r.FileModTime]]);
-  h += sec('签名信息', [['签名',r.Signed?'✓ 是':'✗ 否'],['有效',r.SignValid?'✓ 是':'✗ 否'],['签发者',r.Signer],['公司',r.Company],['产品',r.Product],['原始文件名',r.OriginalName]]);
-  h += sec('上下文分析', [['LOLBin',r.IsLOLBin?'<span class="tag tag-orange">是</span>':'否'],['路径异常',r.PathAbnormal?'<span class="tag tag-red">是</span>':'否'],['文件名伪装',r.IsMasquerade?'<span class="tag tag-red">是</span>':'否'],['异常父进程链',r.AbnormalParentChain?'<span class="tag tag-red">是</span>':'否']]);
-  h += sec('网络连接', [['有网络活动',r.HasNetwork?'是':'否'],['远程IP',(r.RemoteIPs||[]).join(', ')],['公网连接',r.HasPublicIP?'<span class="tag tag-red">是</span>':'否']]);
+  h += sec(t('dtlProcInfo'), [[t('dtlProcName'),r.Name],[t('dtlPID'),r.PID],[t('dtlParent'),r.PPID+(r.ParentName?' ('+r.ParentName+')':'')],[t('dtlPath'),r.Path,1],[t('dtlCmd'),r.CommandLine,1],[t('dtlUser'),r.User],[t('dtlStartTime'),r.StartTime]]);
+  h += sec(t('dtlFileInfo'), [[t('dtlSHA256'),r.SHA256,1],[t('dtlMD5'),r.MD5,1],[t('dtlFileSize'),r.FileSize?r.FileSize+' '+t('dtlBytes'):''],[t('dtlModTime'),r.FileModTime]]);
+  h += sec(t('dtlSignInfo'), [[t('dtlSigned'),r.Signed?'✓ '+t('yes'):'✗ '+t('no')],[t('dtlValid'),r.SignValid?'✓ '+t('yes'):'✗ '+t('no')],[t('dtlSigner'),r.Signer],[t('dtlCompany'),r.Company],[t('dtlProduct'),r.Product],[t('dtlOrigName'),r.OriginalName]]);
+  h += sec(t('dtlContextAnalysis'), [[t('dtlLOLBin'),r.IsLOLBin?'<span class="tag tag-orange">'+t('yes')+'</span>':t('no')],[t('dtlPathAbnormal'),r.PathAbnormal?'<span class="tag tag-red">'+t('yes')+'</span>':t('no')],[t('dtlMasquerade'),r.IsMasquerade?'<span class="tag tag-red">'+t('yes')+'</span>':t('no')],[t('dtlAbnormalParent'),r.AbnormalParentChain?'<span class="tag tag-red">'+t('yes')+'</span>':t('no')]]);
+  h += sec(t('dtlNetConn'), [[t('dtlHasNetwork'),r.HasNetwork?t('yes'):t('no')],[t('dtlRemoteIP'),(r.RemoteIPs||[]).join(', ')],[t('dtlPublicIP'),r.HasPublicIP?'<span class="tag tag-red">'+t('yes')+'</span>':t('no')]]);
   h += reasonBlock(r.RiskScore, r.RiskLevel, r.Reasons);
-  if (r.SHA256) h += '<div class="detail-section"><h3>VirusTotal</h3><div class="detail-row"><div class="detail-value"><a href="https://www.virustotal.com/gui/file/'+r.SHA256+'" target="_blank">在 VirusTotal 中查看</a></div></div></div>';
+  if (r.SHA256) h += '<div class="detail-section"><h3>VirusTotal</h3><div class="detail-row"><div class="detail-value"><a href="https://www.virustotal.com/gui/file/'+r.SHA256+'" target="_blank">'+t('dtlVTView')+'</a></div></div></div>';
   document.getElementById('modalBody').innerHTML = h;
   document.getElementById('modalOverlay').classList.add('show');
 }
@@ -1549,27 +1897,27 @@ function showTrigDetail(i) {
 
 function showExecDetail(i) {
   const e = filtExec[i]; if (!e) return;
-  document.getElementById('modalTitle').textContent = '执行对象详情: ' + (e.Path||e.CommandLine);
+  document.getElementById('modalTitle').textContent = t('dtlDetail') + ': ' + (e.Path||e.CommandLine);
   let h = '';
-  h += sec('基本信息', [['路径',e.Path,1],['类型',e.ObjType],['位置',e.LocationType],['状态',e.IsRunning?'<span class="tag tag-red">运行中</span>':'<span class="tag tag-blue">未运行</span>'],['PID',(e.PIDs||[]).join(', ')],['来源',(e.Sources||[]).join(', ')]]);
-  h += sec('文件信息', [['SHA256',e.SHA256,1],['MD5',e.MD5,1],['文件存在',e.Exists?'是':'否']]);
-  h += sec('签名信息', [['签名',e.Signed?'✓ 是':'✗ 否'],['有效',e.SignValid?'✓ 是':'✗ 否'],['签发者',e.Signer],['公司',e.Company]]);
-  h += sec('网络', [['有网络活动',e.NetworkObserved?'是':'否'],['远程IP',(e.RemoteIPs||[]).join(', ')],['公网',e.HasPublicIP?'<span class="tag tag-red">是</span>':'否']]);
+  h += sec(t('dtlBasicInfo'), [[t('dtlPath'),e.Path,1],[t('dtlType'),e.ObjType],[t('colLocation'),e.LocationType],[t('colStatus'),e.IsRunning?'<span class="tag tag-red">'+t('running')+'</span>':'<span class="tag tag-blue">'+t('notRunning')+'</span>'],['PID',(e.PIDs||[]).join(', ')],[t('dtlSources'),(e.Sources||[]).join(', ')]]);
+  h += sec(t('dtlFileInfo'), [['SHA256',e.SHA256,1],['MD5',e.MD5,1],[t('dtlExists'),e.Exists?t('yes'):t('no')]]);
+  h += sec(t('dtlSignInfo'), [[t('dtlSigned'),e.Signed?'✓ '+t('yes'):'✗ '+t('no')],[t('dtlValid'),e.SignValid?'✓ '+t('yes'):'✗ '+t('no')],[t('dtlSigner'),e.Signer],[t('dtlCompany'),e.Company]]);
+  h += sec(t('dtlNetInfo'), [[t('dtlHasNetwork'),e.NetworkObserved?t('yes'):t('no')],[t('dtlRemoteIP'),(e.RemoteIPs||[]).join(', ')],[t('dtlPublicIP'),e.HasPublicIP?'<span class="tag tag-red">'+t('yes')+'</span>':t('no')]]);
   if ((e.Triggers||[]).length > 0) {
-    h += '<div class="detail-section"><h3>触发器 ('+e.Triggers.length+' 个)</h3>';
-    e.Triggers.forEach(t => { h += '<div class="detail-row"><div class="detail-value"><span class="tag tag-orange">['+esc(TT[t.Type]||t.Type)+'] '+esc(t.Name)+'</span> '+esc(t.Detail)+'</div></div>'; });
+    h += '<div class="detail-section"><h3>'+t('colTriggers')+' ('+e.Triggers.length+')</h3>';
+    e.Triggers.forEach(tr => { h += '<div class="detail-row"><div class="detail-value"><span class="tag tag-orange">['+esc(TT[tr.Type]||tr.Type)+'] '+esc(tr.Name)+'</span> '+esc(tr.Detail)+'</div></div>'; });
     h += '</div>';
   }
-  h += '<div class="detail-section"><h3>评分构成</h3>';
-  h += '<div class="detail-row"><div class="detail-label">进程评分</div><div class="detail-value">'+e.ExecutionScore+'</div></div>';
-  h += '<div class="detail-row"><div class="detail-label">触发器评分</div><div class="detail-value">'+e.TriggerScore+'</div></div>';
-  h += '<div class="detail-row"><div class="detail-label">取证评分</div><div class="detail-value">'+e.ForensicScore+'</div></div>';
-  h += '<div class="detail-row"><div class="detail-label">YARA评分</div><div class="detail-value">'+e.YaraScore+(e.YaraMatched?' <span class="tag tag-red">命中</span>':'')+'</div></div>';
-  h += '<div class="detail-row"><div class="detail-label">事件评分</div><div class="detail-value">'+e.EventScore+(e.EventCount>0?' ('+e.EventCount+'条事件)':'')+'</div></div>';
-  h += '<div class="detail-row"><div class="detail-label">模块评分</div><div class="detail-value">'+e.DLLHijackScore+(e.HasDLLHijack?' <span class="tag tag-red">DLL劫持</span>':'')+(e.SuspiciousModuleCount>0?' ('+e.SuspiciousModuleCount+'个可疑)':'')+'</div></div>';
-  h += '<div class="detail-row"><div class="detail-label">组合加权</div><div class="detail-value">+'+e.SynergyBonus+'</div></div>';
-  h += '<div class="detail-row"><div class="detail-label">白特征抵消</div><div class="detail-value">-'+e.WhiteReduction+'</div></div>';
-  h += '<div class="detail-row"><div class="detail-label"><strong>最终评分</strong></div><div class="detail-value"><strong>'+e.FinalScore+'</strong></div></div>';
+  h += '<div class="detail-section"><h3>'+t('dtlScoreCompose')+'</h3>';
+  h += '<div class="detail-row"><div class="detail-label">'+t('dtlExecScore')+'</div><div class="detail-value">'+e.ExecutionScore+'</div></div>';
+  h += '<div class="detail-row"><div class="detail-label">'+t('dtlTrigScore')+'</div><div class="detail-value">'+e.TriggerScore+'</div></div>';
+  h += '<div class="detail-row"><div class="detail-label">'+t('dtlForeScore')+'</div><div class="detail-value">'+e.ForensicScore+'</div></div>';
+  h += '<div class="detail-row"><div class="detail-label">'+t('dtlYaraScore')+'</div><div class="detail-value">'+e.YaraScore+(e.YaraMatched?' <span class="tag tag-red">YARA</span>':'')+'</div></div>';
+  h += '<div class="detail-row"><div class="detail-label">'+t('dtlEvtScore')+'</div><div class="detail-value">'+e.EventScore+(e.EventCount>0?' ('+e.EventCount+')':'')+'</div></div>';
+  h += '<div class="detail-row"><div class="detail-label">'+t('dtlModScore')+'</div><div class="detail-value">'+e.DLLHijackScore+(e.HasDLLHijack?' <span class="tag tag-red">'+t('dtlDLLHijack')+'</span>':'')+(e.SuspiciousModuleCount>0?' ('+e.SuspiciousModuleCount+')':'')+'</div></div>';
+  h += '<div class="detail-row"><div class="detail-label">'+t('dtlSynergy')+'</div><div class="detail-value">+'+e.SynergyBonus+'</div></div>';
+  h += '<div class="detail-row"><div class="detail-label">'+t('dtlWhiteReduce')+'</div><div class="detail-value">-'+e.WhiteReduction+'</div></div>';
+  h += '<div class="detail-row"><div class="detail-label"><strong>'+t('dtlFinalScore')+'</strong></div><div class="detail-value"><strong>'+e.FinalScore+'</strong></div></div>';
   h += '</div>';
   h += reasonBlock(e.FinalScore, e.RiskLevel, e.Reasons);
   if (e.SHA256) h += '<div class="detail-section"><h3>VirusTotal</h3><div class="detail-row"><div class="detail-value"><a href="https://www.virustotal.com/gui/file/'+e.SHA256+'" target="_blank">在 VirusTotal 中查看</a></div></div></div>';
@@ -1594,11 +1942,11 @@ function showForeDetail(i) {
 
 function reasonBlock(score, level, reasons) {
   const lv = RL[level]||level;
-  let h = '<div class="detail-section"><h3>风险评估</h3>';
-  h += '<div class="detail-row"><div class="detail-label">评分</div><div class="detail-value"><strong>'+score+'</strong></div></div>';
-  h += '<div class="detail-row"><div class="detail-label">等级</div><div class="detail-value"><span class="tag tag-'+(level==='Critical'?'red':level==='High'?'orange':level==='Medium'?'orange':'blue')+'">'+esc(lv)+'</span></div></div>';
+  let h = '<div class="detail-section"><h3>'+t('dtlRiskAssess')+'</h3>';
+  h += '<div class="detail-row"><div class="detail-label">'+t('dtlScore')+'</div><div class="detail-value"><strong>'+score+'</strong></div></div>';
+  h += '<div class="detail-row"><div class="detail-label">'+t('dtlLevel')+'</div><div class="detail-value"><span class="tag tag-'+(level==='Critical'?'red':level==='High'?'orange':level==='Medium'?'orange':'blue')+'">'+esc(lv)+'</span></div></div>';
   if ((reasons||[]).length > 0) {
-    h += '<div class="detail-row"><div class="detail-label">风险原因</div><div class="detail-value">';
+    h += '<div class="detail-row"><div class="detail-label">'+t('dtlReasons')+'</div><div class="detail-value">';
     reasons.forEach(r => { h += '<div class="tag tag-red" style="display:block;margin:2px 0">'+esc(r)+'</div>'; });
     h += '</div></div>';
   }
@@ -1618,22 +1966,73 @@ function esc(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').repl
 
 // --- AI Chat Logic ---
 
-const AI_SYSTEM_PROMPT = '你是资深Windows应急响应专家。用户是安全工程师，使用ProcIR工具排查。回复要求：\n1. 极度精简，不要废话，不要解释基础概念\n2. 直接给结论：有威胁/无威胁/需关注\n3. 用表格或列表呈现，每条一行：进程名+判定+原因\n4. 只报告真正可疑的，正常系统进程不用提\n5. 处置建议只写具体动作，如「kill PID xxx」「删除该计划任务」「排查该外连IP」\n6. 如果没有明显威胁，直接说「未发现明显威胁」，不要凑字数';
-let aiChatHistory = []; // {role, content} array for context
+const AI_SYSTEM_PROMPT_ZH = '你是资深Windows应急响应专家。用户是安全工程师，使用ProcIR工具排查。回复要求：\n1. 极度精简，不要废话，不要解释基础概念\n2. 直接给结论：有威胁/无威胁/需关注\n3. 用表格或列表呈现，每条一行：进程名+判定+原因\n4. 只报告真正可疑的，正常系统进程不用提\n5. 处置建议只写具体动作，如「kill PID xxx」「删除该计划任务」「排查该外连IP」\n6. 如果没有明显威胁，直接说「未发现明显威胁」，不要凑字数';
+
+const AI_SYSTEM_PROMPT_EN = 'You are a senior Windows incident response expert. The user is a security engineer using ProcIR for investigation. The scan data may contain Chinese-language annotations from the backend detection engine - interpret them and always respond in English. Requirements:\n1. Be extremely concise, no fluff, no basic concept explanations\n2. Give direct conclusions: threat/no threat/needs attention\n3. Use tables or lists, one line per item: process name + verdict + reason\n4. Only report truly suspicious items, skip normal system processes\n5. Remediation advice should be specific actions like "kill PID xxx", "delete scheduled task", "investigate outbound IP"\n6. If no obvious threat, just say "No obvious threats found"';
+
+function getAISystemPrompt() { return curLang === 'en' ? AI_SYSTEM_PROMPT_EN : AI_SYSTEM_PROMPT_ZH; }
+
+let aiChatHistory = [];
 let aiTotalTokens = 0;
 let aiSending = false;
 
+function updateAIPanel(lang) {
+  const titleEl = document.querySelector('#view_ai h3');
+  const badgeEl = document.getElementById('aiStatusBadge');
+  const keyInput = document.getElementById('aiApiKey');
+  const modelSelect = document.getElementById('aiModel');
+  const saveLabel = document.querySelector('#aiSaveKey').parentElement;
+  const clearBtn = document.querySelector('#view_ai .btn[onclick="clearAIChat()"]');
+  const sendDataBtn = document.querySelector('#view_ai .btn[onclick="sendScanData()"]');
+  const sendBriefBtn = document.querySelector('#view_ai .btn[onclick="sendScanDataBrief()"]');
+  const aiInput = document.getElementById('aiInput');
+  const sendBtn = document.getElementById('aiSendBtn');
+  const welcome = document.getElementById('aiWelcome');
+
+  if (lang === 'en') {
+    titleEl.textContent = 'Claude AI';
+    keyInput.placeholder = t('aiKeyPH');
+    modelSelect.innerHTML = '<option value="claude-sonnet-4-6" selected>Sonnet 4.6</option><option value="claude-opus-4-6">Opus 4.6</option><option value="claude-haiku-4-5-20251001">Haiku 4.5</option>';
+    saveLabel.lastChild.textContent = ' ' + t('aiRememberKey');
+  } else {
+    titleEl.textContent = 'MiniMax AI';
+    keyInput.placeholder = t('aiKeyPH');
+    modelSelect.innerHTML = '<option value="MiniMax-M2.5">M2.5</option><option value="MiniMax-M2.5-highspeed">M2.5 高速</option><option value="MiniMax-M2.7" selected>M2.7</option><option value="MiniMax-M2.7-highspeed">M2.7 高速</option>';
+    saveLabel.lastChild.textContent = ' ' + t('aiRememberKey');
+  }
+
+  badgeEl.textContent = t('aiReady');
+  document.querySelector('#view_ai label[style*="white-space:nowrap"][style*="font-size:12px"]').textContent = t('aiModel');
+  clearBtn.textContent = t('aiClearChat');
+  sendDataBtn.textContent = t('aiSendData');
+  sendBriefBtn.textContent = t('aiSendBrief');
+  aiInput.placeholder = t('aiInputPH');
+  sendBtn.textContent = t('aiSend');
+
+  if (welcome && welcome.style.display !== 'none') {
+    welcome.innerHTML = '<div style="font-size:16px;margin-bottom:12px;color:#e94560">'+t('aiWelcomeTitle')+'</div><div style="margin-bottom:8px">'+t('aiWelcomeMsg')+'</div><div style="font-size:11px;color:#555">'+t('aiWelcomeHint')+'</div>';
+  }
+
+  // Load saved key for current provider
+  const keyName = lang === 'en' ? 'procir_claude_key' : 'procir_minimax_key';
+  const saved = localStorage.getItem(keyName);
+  keyInput.value = saved || '';
+  document.getElementById('aiSaveKey').checked = !!saved;
+}
+
 (function() {
-  const saved = localStorage.getItem('procir_minimax_key');
+  const keyName = curLang === 'en' ? 'procir_claude_key' : 'procir_minimax_key';
+  const saved = localStorage.getItem(keyName);
   if (saved) { document.getElementById('aiApiKey').value = saved; document.getElementById('aiSaveKey').checked = true; }
 })();
 
 function toggleAISaveKey() {
+  const keyName = curLang === 'en' ? 'procir_claude_key' : 'procir_minimax_key';
   if (document.getElementById('aiSaveKey').checked) {
     const key = document.getElementById('aiApiKey').value;
-    if (key) localStorage.setItem('procir_minimax_key', key);
+    if (key) localStorage.setItem(keyName, key);
   } else {
-    localStorage.removeItem('procir_minimax_key');
+    localStorage.removeItem(keyName);
   }
 }
 
@@ -1678,7 +2077,7 @@ function appendChatBubble(role, content, isLoading) {
   } else {
     msg.style.background = '#1e2a4a'; msg.style.color = '#e0e0e0';
     if (isLoading) {
-      msg.innerHTML = '<span style="color:#ffd600">思考中...</span>';
+      msg.innerHTML = '<span style="color:#ffd600">'+t('aiThinking')+'</span>';
       msg.id = 'aiLoadingBubble';
     } else {
       msg.innerHTML = renderAIMd(content);
@@ -1693,25 +2092,24 @@ function appendChatBubble(role, content, isLoading) {
 }
 
 function buildScanDataFull() {
-  let p = '以下是ProcIR扫描结果，请进行全面安全分析：\n\n';
+  let p = t('aiDataIntro') + '\n\n';
 
   const {c,h,m,s} = countRiskLevels();
-  p += '## 总体统计\n';
-  p += '进程:' + allProc.length + ' (严重:'+c+' 高危:'+h+' 中危:'+m+' 可疑:'+s+') | 触发器:' + allTrig.length + ' | 行为链:' + allChain.length + ' | IOC:' + allIOC.length + ' | 事件:' + allEvt.length + '\n\n';
+  p += '## ' + t('aiOverall') + '\n';
+  p += t('aiProcess') + allProc.length + ' (' + t('statCrit')+c+' '+t('statHigh')+h+' '+t('statMed')+m+' '+t('statSusp')+s+') | ' + t('aiTrigger') + allTrig.length + ' | ' + t('aiChain') + allChain.length + ' | IOC:' + allIOC.length + ' | ' + t('statEvt') + allEvt.length + '\n\n';
 
-  // Single pass: classify processes into high/medium buckets
   const highRisk = [], medRisk = [];
   allProc.forEach(r => {
     if (r.RiskLevel==='Critical' || r.RiskLevel==='High') highRisk.push(r);
     else if (r.RiskLevel==='Medium') medRisk.push(r);
   });
   if (highRisk.length > 0) {
-    p += '## 高风险进程 (' + highRisk.length + '个)\n';
+    p += '## ' + t('aiHighProc') + ' (' + highRisk.length + ')\n';
     highRisk.slice(0, 30).forEach(r => {
       p += '- [' + r.RiskLevel + '/' + r.RiskScore + '] ' + r.Name + ' PID:' + r.PID;
       if (r.Path) p += ' ' + r.Path;
-      if (r.Signer) p += ' 签名:' + r.Signer; else p += ' [未签名]';
-      if (r.HasPublicIP) p += ' [公网]';
+      if (r.Signer) p += ' ' + t('aiSigned') + r.Signer; else p += ' ' + t('aiUnsigned');
+      if (r.HasPublicIP) p += ' ' + t('aiPublic');
       if (r.IsLOLBin) p += ' [LOLBin]';
       if ((r.Reasons||[]).length) p += ' | ' + r.Reasons.join('; ');
       if (r.CommandLine) p += '\n  CMD: ' + r.CommandLine;
@@ -1721,7 +2119,7 @@ function buildScanDataFull() {
   }
 
   if (medRisk.length > 0) {
-    p += '## 中危进程 (' + medRisk.length + '个)\n';
+    p += '## ' + t('aiMedProc') + ' (' + medRisk.length + ')\n';
     medRisk.slice(0, 15).forEach(r => {
       p += '- [' + r.RiskScore + '] ' + r.Name + ' PID:' + r.PID + ' ' + (r.Path||'');
       if ((r.Reasons||[]).length) p += ' | ' + r.Reasons.join('; ');
@@ -1730,21 +2128,21 @@ function buildScanDataFull() {
     p += '\n';
   }
 
-  const highTrig = allTrig.filter(t => t.Score >= 20).sort((a,b) => b.Score - a.Score);
+  const highTrig = allTrig.filter(tr => tr.Score >= 20).sort((a,b) => b.Score - a.Score);
   if (highTrig.length > 0) {
-    p += '## 可疑触发器 (' + highTrig.length + '个)\n';
-    highTrig.slice(0, 20).forEach(t => {
-      p += '- [' + t.Score + '][' + (TT[t.Type]||t.Type) + '] ' + t.Name;
-      if (t.Path) p += ' ' + t.Path;
-      if (t.CommandLine) p += ' CMD:' + t.CommandLine;
-      if ((t.Reasons||[]).length) p += ' | ' + t.Reasons.join('; ');
+    p += '## ' + t('aiSuspTrig') + ' (' + highTrig.length + ')\n';
+    highTrig.slice(0, 20).forEach(tr => {
+      p += '- [' + tr.Score + '][' + (TT[tr.Type]||tr.Type) + '] ' + tr.Name;
+      if (tr.Path) p += ' ' + tr.Path;
+      if (tr.CommandLine) p += ' CMD:' + tr.CommandLine;
+      if ((tr.Reasons||[]).length) p += ' | ' + tr.Reasons.join('; ');
       p += '\n';
     });
     p += '\n';
   }
 
   if (allChain.length > 0) {
-    p += '## 行为链\n';
+    p += '## ' + t('aiBehavior') + '\n';
     allChain.forEach(c => {
       p += '- [' + c.PatternScore + '] ' + c.PatternName + ': ' + (c.Evidence||[]).join(' -> ');
       p += '\n';
@@ -1753,57 +2151,54 @@ function buildScanDataFull() {
   }
 
   if (allIOC.length > 0) {
-    p += '## IOC (' + allIOC.length + '个)\n';
+    p += '## IOC (' + allIOC.length + ')\n';
     allIOC.slice(0, 30).forEach(i => {
       p += '- [' + (IOT[i.Type]||i.Type) + '] ' + i.Value + (i.SourceObject?' ('+i.SourceObject+')':'') + '\n';
     });
     p += '\n';
   }
 
-  // 执行对象（融合视图，包含多维度评分）
   const highExec = allExec.filter(e => e.FinalScore >= 40).sort((a,b) => b.FinalScore - a.FinalScore);
   if (highExec.length > 0) {
-    p += '## 高危执行对象 (' + highExec.length + '个)\n';
+    p += '## ' + t('aiHighExec') + ' (' + highExec.length + ')\n';
     highExec.slice(0, 20).forEach(e => {
       p += '- [' + (e.RiskLevel||'?') + '/' + e.FinalScore + '] ' + (e.Path||'?');
-      p += ' ' + (e.IsRunning?'[运行中]':'[未运行]');
-      if (e.Signed) p += ' 签名:' + (e.Signer||'是'); else p += ' [未签名]';
-      if (e.TriggerCount>0) p += ' 触发器:' + e.TriggerCount + '(' + (e.TriggerTypes||[]).map(t=>TT[t]||t).join('+') + ')';
-      if (e.NetworkObserved) p += ' [有网络]';
-      if (e.HasPublicIP) p += ' [公网]';
-      if (e.YaraMatched) p += ' [YARA命中]';
-      if (e.HasDLLHijack) p += ' [DLL劫持]';
-      p += ' 评分构成:执行' + e.ExecutionScore + '/触发' + e.TriggerScore + '/取证' + e.ForensicScore + '/事件' + e.EventScore + '/模块' + e.DLLHijackScore;
-      if ((e.Reasons||[]).length) p += '\n  原因: ' + e.Reasons.join('; ');
+      p += ' ' + (e.IsRunning ? t('aiRunning') : t('aiNotRunning'));
+      if (e.Signed) p += ' ' + t('aiSigned') + (e.Signer||t('yes')); else p += ' ' + t('aiUnsigned');
+      if (e.TriggerCount>0) p += ' ' + t('colTriggers') + ':' + e.TriggerCount + '(' + (e.TriggerTypes||[]).map(tp=>TT[tp]||tp).join('+') + ')';
+      if (e.NetworkObserved) p += ' ' + t('aiHasNet');
+      if (e.HasPublicIP) p += ' ' + t('aiPublic');
+      if (e.YaraMatched) p += ' ' + t('aiYaraHit');
+      if (e.HasDLLHijack) p += ' ' + t('aiDLLHijack');
+      p += ' ' + t('aiScoreBreak') + t('aiExec') + e.ExecutionScore + '/' + t('aiTrig') + e.TriggerScore + '/' + t('aiForensic') + e.ForensicScore + '/' + t('aiEvent') + e.EventScore + '/' + t('aiModule') + e.DLLHijackScore;
+      if ((e.Reasons||[]).length) p += '\n  ' + t('aiReasonLabel') + ' ' + e.Reasons.join('; ');
       p += '\n';
     });
     p += '\n';
   }
 
-  // 模块分析（DLL劫持检测）
   const suspMod = allMod.filter(m => m.Score >= 20 || m.HasDLLHijack).sort((a,b) => b.Score - a.Score);
   if (suspMod.length > 0) {
-    p += '## 可疑模块/DLL劫持 (' + suspMod.length + '个)\n';
+    p += '## ' + t('aiSuspMod') + ' (' + suspMod.length + ')\n';
     suspMod.slice(0, 15).forEach(m => {
       p += '- [' + m.Score + '] ' + m.ExeName + '(PID:' + m.PID + ') ' + (m.ExePath||'');
-      if (m.HasDLLHijack) p += ' [DLL劫持]';
-      p += ' 可疑DLL:' + m.SuspiciousCount + '/' + m.TotalModules;
-      if (!m.ExeSigned) p += ' [宿主未签名]';
+      if (m.HasDLLHijack) p += ' ' + t('aiDLLHijack');
+      p += ' ' + t('aiSuspDLL') + m.SuspiciousCount + '/' + m.TotalModules;
+      if (!m.ExeSigned) p += ' ' + t('aiHostUnsigned');
       if ((m.Reasons||[]).length) p += ' | ' + m.Reasons.join('; ');
       p += '\n';
     });
     p += '\n';
   }
 
-  // 历史取证（Prefetch/最近文件/事件日志/模块）
   const suspFore = allFore.filter(f => f.Score >= 20).sort((a,b) => b.Score - a.Score);
   if (suspFore.length > 0) {
-    p += '## 可疑历史取证 (' + suspFore.length + '个)\n';
+    p += '## ' + t('aiSuspFore') + ' (' + suspFore.length + ')\n';
     suspFore.slice(0, 15).forEach(f => {
-      const srcCN = FS[f.Source] || f.Source;
-      p += '- [' + f.Score + '][' + srcCN + '] ' + (f.Path||f.Detail||'');
-      const t = f.EventTime || f.LastRunTime || f.FileModTime || '';
-      if (t) p += ' 时间:' + t;
+      const srcLabel = FS[f.Source] || f.Source;
+      p += '- [' + f.Score + '][' + srcLabel + '] ' + (f.Path||f.Detail||'');
+      const tm = f.EventTime || f.LastRunTime || f.FileModTime || '';
+      if (tm) p += ' ' + t('aiTime') + tm;
       if ((f.Reasons||[]).length) p += ' | ' + f.Reasons.join('; ');
       p += '\n';
     });
@@ -1812,7 +2207,7 @@ function buildScanDataFull() {
 
   const highEvt = allEvt.filter(e => e.Score >= 30).sort((a,b) => b.Score - a.Score);
   if (highEvt.length > 0) {
-    p += '## 高危事件 (' + highEvt.length + '个)\n';
+    p += '## ' + t('aiHighEvt') + ' (' + highEvt.length + ')\n';
     highEvt.slice(0, 15).forEach(e => {
       p += '- [' + e.Score + '] EID:' + e.EventID + ' ' + e.Source + ' ' + e.Time + ' ' + (e.Description||'');
       if ((e.Reasons||[]).length) p += ' | ' + e.Reasons.join('; ');
@@ -1825,25 +2220,25 @@ function buildScanDataFull() {
 
 function buildScanDataBrief() {
   const {c,h,m,s} = countRiskLevels();
-  let p = '扫描摘要 - 进程:' + allProc.length + '(严重:'+c+' 高危:'+h+' 中危:'+m+' 可疑:'+s+') 触发器:'+allTrig.length+' 行为链:'+allChain.length+' IOC:'+allIOC.length+'\n\n';
+  let p = t('aiBriefIntro') + ' - ' + t('aiProcess') + allProc.length + '(' + t('statCrit')+c+' '+t('statHigh')+h+' '+t('statMed')+m+' '+t('statSusp')+s+') ' + t('aiTrigger')+allTrig.length+' '+t('aiChain')+allChain.length+' IOC:'+allIOC.length+'\n\n';
 
   const top = allProc.filter(r => r.RiskLevel==='Critical' || r.RiskLevel==='High').slice(0,10);
   if (top.length) {
-    p += '高风险进程:\n';
-    top.forEach(r => { p += '- ' + r.Name + '(PID:'+r.PID+') '+r.RiskLevel+'/'+r.RiskScore + (r.Signer?' '+r.Signer:' [未签名]') + ' ' + ((r.Reasons||[]).join('; ')) + '\n'; });
+    p += t('aiBriefHighProc') + '\n';
+    top.forEach(r => { p += '- ' + r.Name + '(PID:'+r.PID+') '+r.RiskLevel+'/'+r.RiskScore + (r.Signer?' '+r.Signer:' '+t('aiUnsigned')) + ' ' + ((r.Reasons||[]).join('; ')) + '\n'; });
   }
-  p += '\n请分析这些结果，有什么安全问题？';
+  p += '\n' + t('aiBriefQuestion');
   return p;
 }
 
 function sendScanData() {
-  if (allProc.length === 0) { flash('请先执行系统扫描'); return; }
+  if (allProc.length === 0) { flash(t('aiNeedScan')); return; }
   document.getElementById('aiInput').value = buildScanDataFull();
   sendAIMessage();
 }
 
 function sendScanDataBrief() {
-  if (allProc.length === 0) { flash('请先执行系统扫描'); return; }
+  if (allProc.length === 0) { flash(t('aiNeedScan')); return; }
   document.getElementById('aiInput').value = buildScanDataBrief();
   sendAIMessage();
 }
@@ -1855,81 +2250,87 @@ async function sendAIMessage() {
   if (!text) return;
 
   const apiKey = document.getElementById('aiApiKey').value.trim();
-  if (!apiKey) { flash('请输入MiniMax API Key'); return; }
+  if (!apiKey) { flash(t('aiNeedKey')); return; }
 
+  const keyName = curLang === 'en' ? 'procir_claude_key' : 'procir_minimax_key';
   if (document.getElementById('aiSaveKey').checked) {
-    localStorage.setItem('procir_minimax_key', apiKey);
+    localStorage.setItem(keyName, apiKey);
   }
 
   const model = document.getElementById('aiModel').value;
   aiSending = true;
 
-  // Add user message
   aiChatHistory.push({role: 'user', content: text});
   appendChatBubble('user', text);
   input.value = '';
   input.style.height = 'auto';
 
-  // Show loading
   appendChatBubble('assistant', '', true);
 
   const btn = document.getElementById('aiSendBtn');
   const badge = document.getElementById('aiStatusBadge');
   btn.disabled = true; btn.textContent = '...';
-  badge.textContent = '请求中'; badge.style.background = '#4a3000'; badge.style.color = '#ffd600';
+  badge.textContent = t('aiRequesting'); badge.style.background = '#4a3000'; badge.style.color = '#ffd600';
 
-  // Build messages with system prompt, cap context to last 30 messages
   const ctx = aiChatHistory.length > 30 ? aiChatHistory.slice(-30) : aiChatHistory;
-  const messages = [{role: 'system', content: AI_SYSTEM_PROMPT}, ...ctx];
+  const apiEndpoint = curLang === 'en' ? '/api/ai/claude' : '/api/ai/analyze';
+  const systemPrompt = getAISystemPrompt();
+  const messages = curLang === 'en' ? ctx : [{role: 'system', content: systemPrompt}, ...ctx];
 
   try {
-    const resp = await fetch('/api/ai/analyze', {
+    const body = curLang === 'en'
+      ? { apiKey: apiKey, model: model, messages: ctx, system: systemPrompt }
+      : { apiKey: apiKey, model: model, messages: messages };
+
+    const resp = await fetch(apiEndpoint, {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ apiKey: apiKey, model: model, messages: messages })
+      body: JSON.stringify(body)
     });
     const data = await resp.json();
 
-    // Remove loading bubble
     const loading = document.getElementById('aiLoadingBubble');
     if (loading) loading.parentElement.remove();
 
     if (!data.ok) {
-      appendChatBubble('assistant', '(错误: ' + (data.error||'请求失败') + ')');
-      badge.textContent = '失败'; badge.style.background = '#5c1a1a'; badge.style.color = '#ff8a80';
+      appendChatBubble('assistant', '(' + t('aiError') + ': ' + (data.error||'') + ')');
+      badge.textContent = t('aiFailed'); badge.style.background = '#5c1a1a'; badge.style.color = '#ff8a80';
     } else {
-      const content = data.content || '(无返回)';
+      const content = data.content || t('aiNoReturn');
       aiChatHistory.push({role: 'assistant', content: content});
       appendChatBubble('assistant', content);
-      badge.textContent = '就绪'; badge.style.background = '#1a3a1a'; badge.style.color = '#a5d6a7';
+      badge.textContent = t('aiReady'); badge.style.background = '#1a3a1a'; badge.style.color = '#a5d6a7';
 
-      if (data.totalTokens) {
-        aiTotalTokens += data.totalTokens;
-        document.getElementById('aiTokenCounter').textContent = '本轮:' + (data.promptTokens||0) + '+' + (data.completionTokens||0) + ' | 累计:' + aiTotalTokens;
+      const totalTk = data.totalTokens || ((data.promptTokens||0) + (data.completionTokens||0));
+      if (totalTk) {
+        aiTotalTokens += totalTk;
+        document.getElementById('aiTokenCounter').textContent = t('aiRound') + (data.promptTokens||0) + '+' + (data.completionTokens||0) + ' | ' + t('aiTotal') + aiTotalTokens;
       }
     }
   } catch(e) {
     const loading = document.getElementById('aiLoadingBubble');
     if (loading) loading.parentElement.remove();
-    appendChatBubble('assistant', '(网络错误: ' + e.message + ')');
-    badge.textContent = '出错'; badge.style.background = '#5c1a1a'; badge.style.color = '#ff8a80';
+    appendChatBubble('assistant', '(' + t('aiError') + ': ' + e.message + ')');
+    badge.textContent = t('aiError'); badge.style.background = '#5c1a1a'; badge.style.color = '#ff8a80';
   }
 
   aiSending = false;
-  btn.disabled = false; btn.textContent = '发送';
+  btn.disabled = false; btn.textContent = t('aiSend');
 }
 
 function clearAIChat() {
   aiChatHistory = [];
   aiTotalTokens = 0;
   const area = document.getElementById('aiChatArea');
-  const welcome = document.getElementById('aiWelcome');
-  // Remove everything except the welcome element
   while (area.firstChild) area.removeChild(area.firstChild);
-  if (welcome) { welcome.style.display = ''; area.appendChild(welcome); }
+  const welcome = document.createElement('div');
+  welcome.id = 'aiWelcome';
+  welcome.style.cssText = 'text-align:center;padding:40px 20px;color:#666';
+  welcome.innerHTML = '<div style="font-size:16px;margin-bottom:12px;color:#e94560">'+t('aiWelcomeTitle')+'</div><div style="margin-bottom:8px">'+t('aiWelcomeMsg')+'</div><div style="font-size:11px;color:#555">'+t('aiWelcomeHint')+'</div>';
+  area.appendChild(welcome);
   document.getElementById('aiTokenCounter').textContent = '';
   const badge = document.getElementById('aiStatusBadge');
-  badge.textContent = '就绪'; badge.style.background = '#333'; badge.style.color = '#888';
+  badge.textContent = t('aiReady'); badge.style.background = '#333'; badge.style.color = '#888';
 }
 </script>
 </body>

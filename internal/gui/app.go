@@ -64,6 +64,7 @@ func Run() {
 	mux.HandleFunc("/api/yara/progress", handleYaraProgress)
 	mux.HandleFunc("/api/yara/results", handleYaraResults)
 	mux.HandleFunc("/api/ai/analyze", handleAIAnalyze)
+	mux.HandleFunc("/api/ai/claude", handleClaudeAnalyze)
 	mux.HandleFunc("/api/export", handleExport)
 	mux.HandleFunc("/api/opendir", handleOpenDir)
 
@@ -695,5 +696,113 @@ func handleAIAnalyze(w http.ResponseWriter, r *http.Request) {
 		"totalTokens":      apiResp.Usage.TotalTokens,
 		"promptTokens":     apiResp.Usage.PromptTokens,
 		"completionTokens": apiResp.Usage.CompletionTokens,
+	})
+}
+
+// --- AI Analysis API (Claude / Anthropic) ---
+
+func handleClaudeAnalyze(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", 405)
+		return
+	}
+
+	var req struct {
+		APIKey   string              `json:"apiKey"`
+		Model    string              `json:"model"`
+		Messages []map[string]string `json:"messages"`
+		System   string              `json:"system"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Bad request", 400)
+		return
+	}
+	if req.APIKey == "" || req.Model == "" || len(req.Messages) == 0 {
+		jsonErr(w, "Please provide API Key, select model, and send a message")
+		return
+	}
+
+	apiBody := map[string]any{
+		"model":      req.Model,
+		"max_tokens": 16384,
+		"messages":   req.Messages,
+	}
+	if req.System != "" {
+		apiBody["system"] = req.System
+	}
+
+	bodyJSON, err := json.Marshal(apiBody)
+	if err != nil {
+		jsonErr(w, "Failed to build request")
+		return
+	}
+
+	apiReq, err := http.NewRequest("POST", "https://api.anthropic.com/v1/messages", bytes.NewReader(bodyJSON))
+	if err != nil {
+		jsonErr(w, "Failed to create request")
+		return
+	}
+	apiReq.Header.Set("Content-Type", "application/json")
+	apiReq.Header.Set("x-api-key", req.APIKey)
+	apiReq.Header.Set("anthropic-version", "2023-06-01")
+
+	resp, err := aiClient.Do(apiReq)
+	if err != nil {
+		jsonErr(w, "Claude API request failed: "+err.Error())
+		return
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		jsonErr(w, "Failed to read response")
+		return
+	}
+
+	if resp.StatusCode != 200 {
+		jsonErr(w, fmt.Sprintf("Claude API error (%d): %s", resp.StatusCode, string(respBody)))
+		return
+	}
+
+	var apiResp struct {
+		Content []struct {
+			Type string `json:"type"`
+			Text string `json:"text"`
+		} `json:"content"`
+		Usage struct {
+			InputTokens  int `json:"input_tokens"`
+			OutputTokens int `json:"output_tokens"`
+		} `json:"usage"`
+		Error *struct {
+			Type    string `json:"type"`
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+
+	if err := json.Unmarshal(respBody, &apiResp); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{"ok": true, "content": string(respBody), "raw": true})
+		return
+	}
+
+	if apiResp.Error != nil {
+		jsonErr(w, fmt.Sprintf("Claude API error: %s", apiResp.Error.Message))
+		return
+	}
+
+	content := ""
+	for _, block := range apiResp.Content {
+		if block.Type == "text" {
+			content += block.Text
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"ok":               true,
+		"content":          content,
+		"promptTokens":     apiResp.Usage.InputTokens,
+		"completionTokens": apiResp.Usage.OutputTokens,
+		"totalTokens":      apiResp.Usage.InputTokens + apiResp.Usage.OutputTokens,
 	})
 }
