@@ -120,23 +120,46 @@ func handleScan(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func handleRecords(w http.ResponseWriter, r *http.Request)     { jsonResult(w, func(res *scoring.ScanResult) any { return res.Records }) }
-func handleTriggers(w http.ResponseWriter, r *http.Request)    { jsonResult(w, func(res *scoring.ScanResult) any { return res.Triggers }) }
-func handleExecObjects(w http.ResponseWriter, r *http.Request) { jsonResult(w, func(res *scoring.ScanResult) any { return res.ExecObjects }) }
-func handleForensics(w http.ResponseWriter, r *http.Request)   { jsonResult(w, func(res *scoring.ScanResult) any { return res.Forensics }) }
-func handleTimeline(w http.ResponseWriter, r *http.Request)    { jsonCorrelation(w, func(c *types.CorrelationResult) any { return c.Timeline }) }
-func handleChains(w http.ResponseWriter, r *http.Request)      { jsonCorrelation(w, func(c *types.CorrelationResult) any { return c.Chains }) }
-func handleIndicators(w http.ResponseWriter, r *http.Request)  { jsonCorrelation(w, func(c *types.CorrelationResult) any { return c.Indicators }) }
-func handleProcTree(w http.ResponseWriter, r *http.Request)    { jsonCorrelation(w, func(c *types.CorrelationResult) any { return c.ProcessTree }) }
-func handleEvents(w http.ResponseWriter, r *http.Request)      { jsonResult(w, func(res *scoring.ScanResult) any { return res.EventResults }) }
-func handleModules(w http.ResponseWriter, r *http.Request)     { jsonResult(w, func(res *scoring.ScanResult) any { return res.ModuleAnalyses }) }
+func handleRecords(w http.ResponseWriter, r *http.Request) {
+	jsonResult(w, func(res *scoring.ScanResult) any { return res.Records })
+}
+func handleTriggers(w http.ResponseWriter, r *http.Request) {
+	jsonResult(w, func(res *scoring.ScanResult) any { return res.Triggers })
+}
+func handleExecObjects(w http.ResponseWriter, r *http.Request) {
+	jsonResult(w, func(res *scoring.ScanResult) any { return res.ExecObjects })
+}
+func handleForensics(w http.ResponseWriter, r *http.Request) {
+	jsonResult(w, func(res *scoring.ScanResult) any { return res.Forensics })
+}
+func handleTimeline(w http.ResponseWriter, r *http.Request) {
+	jsonCorrelation(w, func(c *types.CorrelationResult) any { return c.Timeline })
+}
+func handleChains(w http.ResponseWriter, r *http.Request) {
+	jsonCorrelation(w, func(c *types.CorrelationResult) any { return c.Chains })
+}
+func handleIndicators(w http.ResponseWriter, r *http.Request) {
+	jsonCorrelation(w, func(c *types.CorrelationResult) any { return c.Indicators })
+}
+func handleProcTree(w http.ResponseWriter, r *http.Request) {
+	jsonCorrelation(w, func(c *types.CorrelationResult) any { return c.ProcessTree })
+}
+func handleEvents(w http.ResponseWriter, r *http.Request) {
+	jsonResult(w, func(res *scoring.ScanResult) any { return res.EventResults })
+}
+func handleModules(w http.ResponseWriter, r *http.Request) {
+	jsonResult(w, func(res *scoring.ScanResult) any { return res.ModuleAnalyses })
+}
 
 func jsonResult(w http.ResponseWriter, fn func(*scoring.ScanResult) any) {
 	scanMu.Lock()
 	result := lastResult
 	scanMu.Unlock()
 	w.Header().Set("Content-Type", "application/json")
-	if result == nil { json.NewEncoder(w).Encode([]any{}); return }
+	if result == nil {
+		json.NewEncoder(w).Encode([]any{})
+		return
+	}
 	json.NewEncoder(w).Encode(fn(result))
 }
 
@@ -145,17 +168,26 @@ func jsonCorrelation(w http.ResponseWriter, fn func(*types.CorrelationResult) an
 	result := lastResult
 	scanMu.Unlock()
 	w.Header().Set("Content-Type", "application/json")
-	if result == nil || result.Correlation == nil { json.NewEncoder(w).Encode([]any{}); return }
+	if result == nil || result.Correlation == nil {
+		json.NewEncoder(w).Encode([]any{})
+		return
+	}
 	json.NewEncoder(w).Encode(fn(result.Correlation))
 }
 
 // --- IOC Monitor APIs ---
 
 func handleIOCLoad(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" { http.Error(w, "Method not allowed", 405); return }
-	var req struct{ Text string `json:"text"` }
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", 405)
+		return
+	}
+	var req struct {
+		Text string `json:"text"`
+	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Text == "" {
-		http.Error(w, "Bad request", 400); return
+		http.Error(w, "Bad request", 400)
+		return
 	}
 	mon := iocmonitor.GetMonitor()
 	count := mon.LoadIOCs(req.Text)
@@ -164,10 +196,17 @@ func handleIOCLoad(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleIOCStart(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" { http.Error(w, "Method not allowed", 405); return }
-	var req struct{ Duration int `json:"duration"` }
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", 405)
+		return
+	}
+	var req struct {
+		Duration int `json:"duration"`
+	}
 	json.NewDecoder(r.Body).Decode(&req)
-	if req.Duration <= 0 { req.Duration = 600 } // default 10min
+	if req.Duration <= 0 {
+		req.Duration = 600
+	} // default 10min
 
 	mon := iocmonitor.GetMonitor()
 	err := mon.Start(req.Duration)
@@ -180,7 +219,10 @@ func handleIOCStart(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleIOCStop(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" { http.Error(w, "Method not allowed", 405); return }
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", 405)
+		return
+	}
 	iocmonitor.GetMonitor().Stop()
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]any{"ok": true})
@@ -279,7 +321,9 @@ func handleYaraLoadPath(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", 405)
 		return
 	}
-	var req struct{ Path string `json:"path"` }
+	var req struct {
+		Path string `json:"path"`
+	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Path == "" {
 		http.Error(w, "Bad request", 400)
 		return
@@ -391,9 +435,9 @@ func handleYaraScanAll(w http.ResponseWriter, r *http.Request) {
 func handleYaraProgress(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]any{
-		"running":  yaraRunning.Load() == 1,
-		"current":  yaraProgress.Load(),
-		"total":    yaraTotal.Load(),
+		"running": yaraRunning.Load() == 1,
+		"current": yaraProgress.Load(),
+		"total":   yaraTotal.Load(),
 	})
 }
 
@@ -410,17 +454,17 @@ func handleYaraResults(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type yaraResultItem struct {
-		Path      string        `json:"Path"`
-		IsRunning bool          `json:"IsRunning"`
-		Signed    bool          `json:"Signed"`
-		Signer    string        `json:"Signer"`
-		Location  string        `json:"Location"`
-		Score     int           `json:"Score"`
-		YaraScore int           `json:"YaraScore"`
-		RiskLevel string        `json:"RiskLevel"`
-		Hits      interface{}   `json:"Hits"`
-		HitCount  int           `json:"HitCount"`
-		Reasons   []string      `json:"Reasons"`
+		Path      string      `json:"Path"`
+		IsRunning bool        `json:"IsRunning"`
+		Signed    bool        `json:"Signed"`
+		Signer    string      `json:"Signer"`
+		Location  string      `json:"Location"`
+		Score     int         `json:"Score"`
+		YaraScore int         `json:"YaraScore"`
+		RiskLevel string      `json:"RiskLevel"`
+		Hits      interface{} `json:"Hits"`
+		HitCount  int         `json:"HitCount"`
+		Reasons   []string    `json:"Reasons"`
 	}
 
 	var items []yaraResultItem
@@ -451,7 +495,9 @@ func handleYaraScanOne(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", 405)
 		return
 	}
-	var req struct{ Path string `json:"path"` }
+	var req struct {
+		Path string `json:"path"`
+	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Path == "" {
 		http.Error(w, "Bad request", 400)
 		return
@@ -525,7 +571,9 @@ func handleOpenDir(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", 405)
 		return
 	}
-	var req struct{ Path string `json:"path"` }
+	var req struct {
+		Path string `json:"path"`
+	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Path == "" {
 		http.Error(w, "Bad request", 400)
 		return
@@ -545,6 +593,8 @@ func handleOpenDir(w http.ResponseWriter, r *http.Request) {
 
 // --- AI Analysis API (MiniMax) ---
 
+var aiClient = &http.Client{Timeout: 180 * time.Second}
+
 func handleAIAnalyze(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, "Method not allowed", 405)
@@ -552,8 +602,8 @@ func handleAIAnalyze(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		APIKey   string           `json:"apiKey"`
-		Model    string           `json:"model"`
+		APIKey   string              `json:"apiKey"`
+		Model    string              `json:"model"`
 		Messages []map[string]string `json:"messages"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -566,10 +616,10 @@ func handleAIAnalyze(w http.ResponseWriter, r *http.Request) {
 	}
 
 	apiBody := map[string]any{
-		"model":      req.Model,
-		"messages":   req.Messages,
+		"model":       req.Model,
+		"messages":    req.Messages,
 		"temperature": 0.1,
-		"max_tokens": 16384,
+		"max_tokens":  16384,
 	}
 
 	bodyJSON, err := json.Marshal(apiBody)
@@ -586,8 +636,7 @@ func handleAIAnalyze(w http.ResponseWriter, r *http.Request) {
 	apiReq.Header.Set("Content-Type", "application/json")
 	apiReq.Header.Set("Authorization", "Bearer "+req.APIKey)
 
-	client := &http.Client{Timeout: 180 * time.Second}
-	resp, err := client.Do(apiReq)
+	resp, err := aiClient.Do(apiReq)
 	if err != nil {
 		jsonErr(w, "请求MiniMax API失败: "+err.Error())
 		return
