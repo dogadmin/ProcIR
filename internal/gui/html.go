@@ -168,7 +168,9 @@ tr.risk-low { border-left: 3px solid #4caf50; opacity: 0.7; }
   <button class="btn" onclick="showDetail()" id="btnDetail">详情</button>
   <div class="separator"></div>
   <button class="btn" onclick="exportCSV()" id="btnExport">导出CSV</button>
+  <button class="btn" onclick="checkUpdate()" id="btnUpdate">检查更新</button>
   <div style="flex:1"></div>
+  <span id="versionLabel" style="color:#666;font-size:11px;margin-right:8px"></span>
   <button class="btn" id="langToggle" onclick="toggleLang()" style="padding:4px 10px;font-size:12px;font-weight:bold">EN</button>
 </div>
 
@@ -578,7 +580,9 @@ const I18N = {
 zh: {
   // Toolbar
   startScan:'开始扫描', scanning:'扫描中...', copySHA:'复制SHA256', queryVT:'查询VT', copyVTLink:'复制VT链接',
-  openDir:'打开目录', detail:'详情', exportCSV:'导出CSV',
+  openDir:'打开目录', detail:'详情', exportCSV:'导出CSV', checkUpdate:'检查更新',
+  updateChecking:'检查中...', updateLatest:'当前已是最新版本', updateAvail:'发现新版本 v%s，点击下载',
+  updateFail:'检查更新失败',
   // Tabs
   tab_process:'活跃进程', tab_trigger:'触发器', tab_execobj:'执行对象', tab_forensic:'历史取证',
   tab_timeline:'时间线', tab_chain:'行为链', tab_ioc:'IOC', tab_event:'事件日志',
@@ -709,7 +713,9 @@ zh: {
 },
 en: {
   startScan:'Start Scan', scanning:'Scanning...', copySHA:'Copy SHA256', queryVT:'Query VT', copyVTLink:'Copy VT Link',
-  openDir:'Open Dir', detail:'Details', exportCSV:'Export CSV',
+  openDir:'Open Dir', detail:'Details', exportCSV:'Export CSV', checkUpdate:'Check Update',
+  updateChecking:'Checking...', updateLatest:'You are on the latest version', updateAvail:'New version v%s available, click to download',
+  updateFail:'Update check failed',
   tab_process:'Processes', tab_trigger:'Triggers', tab_execobj:'Exec Objects', tab_forensic:'Forensics',
   tab_timeline:'Timeline', tab_chain:'Attack Chains', tab_ioc:'IOC', tab_event:'Events',
   tab_module:'Modules', tab_yara:'YARA', tab_memory:'Memory', tab_iocmon:'IOC Monitor', tab_ai:'AI Analysis',
@@ -850,6 +856,7 @@ function setLang(lang) {
   document.getElementById('btnOpenDir').textContent = L.openDir;
   document.getElementById('btnDetail').textContent = L.detail;
   document.getElementById('btnExport').textContent = L.exportCSV;
+  document.getElementById('btnUpdate').textContent = L.checkUpdate;
 
   // Tabs (preserve badges)
   const tabs = ['process','trigger','execobj','forensic','timeline','chain','ioc','event','module','yara','memory','iocmon','ai'];
@@ -1903,6 +1910,34 @@ async function yaraScan() {
   } catch(e) {}
 })();
 function exportCSV() { window.open('/api/export','_blank'); }
+
+async function checkUpdate() {
+  const btn = document.getElementById('btnUpdate');
+  btn.disabled = true;
+  btn.textContent = t('updateChecking');
+  try {
+    const resp = await fetch('/api/checkupdate');
+    const data = await resp.json();
+    if (!data.ok) {
+      flash(t('updateFail') + ': ' + (data.error||'')); return;
+    }
+    document.getElementById('versionLabel').textContent = 'v' + data.current;
+    if (data.hasUpdate) {
+      const msg = t('updateAvail').replace('%s', data.latest);
+      if (confirm(msg)) {
+        window.open(data.releaseURL, '_blank');
+      }
+    } else {
+      flash(t('updateLatest') + ' (v' + data.current + ')');
+    }
+  } catch(e) {
+    flash(t('updateFail'));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = t('checkUpdate');
+  }
+}
+
 function flash(msg) { document.getElementById('statusText').textContent=msg; setTimeout(()=>render(),2000); }
 
 // Detail views

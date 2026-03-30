@@ -389,6 +389,9 @@ var zh = map[string]string{
 	"cli_export_fail":          "[-] 导出失败: %v",
 	"cli_export_done":          "[+] 导出成功: %s (%s)",
 
+	// === Update check ===
+	"update_network_err":       "网络请求失败，无法检查更新",
+
 	// === New P0/P1 rules ===
 
 	// LOLBin tiering (rules/engine.go)

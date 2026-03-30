@@ -26,6 +26,9 @@ import (
 	"procir/internal/yara"
 )
 
+// Version is the current application version.
+const Version = "1.5.2"
+
 var (
 	scanMu     sync.Mutex
 	lastResult *scoring.ScanResult
@@ -70,6 +73,7 @@ func Run() {
 	mux.HandleFunc("/api/ai/claude", handleClaudeAnalyze)
 	mux.HandleFunc("/api/export", handleExport)
 	mux.HandleFunc("/api/opendir", handleOpenDir)
+	mux.HandleFunc("/api/checkupdate", handleCheckUpdate)
 
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -297,10 +301,11 @@ func handleYaraUpload(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	// Save to temp dir
+	// Save to temp dir — sanitize filename to prevent path traversal
 	tmpDir := filepath.Join(os.TempDir(), "procir_yara")
 	os.MkdirAll(tmpDir, 0755)
-	dstPath := filepath.Join(tmpDir, header.Filename)
+	safeName := filepath.Base(header.Filename)
+	dstPath := filepath.Join(tmpDir, safeName)
 
 	dst, err := os.Create(dstPath)
 	if err != nil {
@@ -841,5 +846,53 @@ func handleClaudeAnalyze(w http.ResponseWriter, r *http.Request) {
 		"promptTokens":     apiResp.Usage.InputTokens,
 		"completionTokens": apiResp.Usage.OutputTokens,
 		"totalTokens":      apiResp.Usage.InputTokens + apiResp.Usage.OutputTokens,
+	})
+}
+
+// --- Check for Updates ---
+
+var updateClient = &http.Client{Timeout: 10 * time.Second}
+
+func handleCheckUpdate(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	req, err := http.NewRequest("GET", "https://api.github.com/repos/dogadmin/ProcIR/releases/latest", nil)
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]any{"ok": false, "error": "Failed to create request"})
+		return
+	}
+	req.Header.Set("Accept", "application/vnd.github.v3+json")
+
+	resp, err := updateClient.Do(req)
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]any{"ok": false, "error": i18n.T("update_network_err")})
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		json.NewEncoder(w).Encode(map[string]any{"ok": false, "error": fmt.Sprintf("GitHub API: %d", resp.StatusCode)})
+		return
+	}
+
+	var release struct {
+		TagName string `json:"tag_name"`
+		HTMLURL string `json:"html_url"`
+		Body    string `json:"body"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
+		json.NewEncoder(w).Encode(map[string]any{"ok": false, "error": "Failed to parse response"})
+		return
+	}
+
+	latestVer := strings.TrimPrefix(release.TagName, "v")
+	hasUpdate := latestVer != Version
+
+	json.NewEncoder(w).Encode(map[string]any{
+		"ok":         true,
+		"current":    Version,
+		"latest":     latestVer,
+		"hasUpdate":  hasUpdate,
+		"releaseURL": release.HTMLURL,
 	})
 }

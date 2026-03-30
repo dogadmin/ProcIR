@@ -286,11 +286,14 @@ func evaluateFilesize(cond string, size int) bool {
 
 func parseSize(s string) int {
 	s = strings.TrimSpace(s)
+	if len(s) == 0 {
+		return 0
+	}
 	multiplier := 1
-	if strings.HasSuffix(s, "KB") {
+	if len(s) > 2 && strings.HasSuffix(s, "KB") {
 		multiplier = 1024
 		s = s[:len(s)-2]
-	} else if strings.HasSuffix(s, "MB") {
+	} else if len(s) > 2 && strings.HasSuffix(s, "MB") {
 		multiplier = 1024 * 1024
 		s = s[:len(s)-2]
 	}

@@ -388,6 +388,9 @@ var en = map[string]string{
 	"cli_export_fail":          "[-] Export failed: %v",
 	"cli_export_done":          "[+] Export success: %s (%s)",
 
+	// === Update check ===
+	"update_network_err":       "Network request failed, unable to check for updates",
+
 	// === New P0/P1 rules ===
 
 	// LOLBin tiering (rules/engine.go)

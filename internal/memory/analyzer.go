@@ -158,8 +158,11 @@ func Analyze(pid uint32, procName, procPath, user string, signed bool, signer st
 		}
 
 		// Advance to next region
+		if mbi.RegionSize == 0 {
+			break
+		}
 		addr = mbi.BaseAddress + uintptr(mbi.RegionSize)
-		if addr < mbi.BaseAddress { // overflow
+		if addr <= mbi.BaseAddress { // overflow or no progress
 			break
 		}
 	}

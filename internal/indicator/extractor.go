@@ -1,21 +1,18 @@
 package indicator
 
 import (
-	"encoding/base64"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
-	"unicode/utf8"
 
 	"procir/internal/i18n"
 	"procir/internal/types"
 )
 
 var (
-	reURL    = regexp.MustCompile(`https?://[^\s"'<>\x60\x00-\x1f]{5,200}`)
-	reIPv4   = regexp.MustCompile(`\b(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\b`)
-	reBase64 = regexp.MustCompile(`[A-Za-z0-9+/]{40,}={0,2}`)
+	reURL  = regexp.MustCompile(`https?://[^\s"'<>\x60\x00-\x1f]{5,200}`)
+	reIPv4 = regexp.MustCompile(`\b(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\b`)
 )
 
 // Extract scans all text sources and returns IOCs.
@@ -94,21 +91,6 @@ func extractFromText(text, source, context string, add func(string, string, stri
 			add("ip", ip, source, context)
 		}
 	}
-
-	for _, b64 := range reBase64.FindAllString(text, -1) {
-		if isLikelyBase64(b64) {
-			decoded, err := base64.StdEncoding.DecodeString(b64)
-			if err == nil && utf8.Valid(decoded) && len(decoded) > 10 {
-				preview := string(decoded)
-				if len(preview) > 80 {
-					preview = preview[:80] + "..."
-				}
-				add("base64", b64[:40]+"...", source, i18n.T("ioc_decoded")+preview)
-			} else {
-				add("base64", b64[:40]+"...", source, context)
-			}
-		}
-	}
 }
 
 // isPublicIPStr validates and checks a dotted-quad string.
@@ -154,21 +136,3 @@ func parseOctet(s string) int {
 	return n
 }
 
-func isLikelyBase64(s string) bool {
-	if len(s) < 40 {
-		return false
-	}
-	hasUpper, hasLower, hasDigit := false, false, false
-	for _, c := range s {
-		if c >= 'A' && c <= 'Z' {
-			hasUpper = true
-		}
-		if c >= 'a' && c <= 'z' {
-			hasLower = true
-		}
-		if c >= '0' && c <= '9' {
-			hasDigit = true
-		}
-	}
-	return hasUpper && hasLower && hasDigit
-}
