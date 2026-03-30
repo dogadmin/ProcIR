@@ -34,17 +34,19 @@ The traditional approach involves manually running a series of commands (tasklis
 - **Pure Go implementation**, no CGO, copy-and-run
 - **Non-resident**, exits after scanning, no impact on production
 - **No network required** for core analysis — all scanning is performed locally (AI analysis requires API access)
+- **Dual-mode operation**: Embedded Web UI (GUI) + pure command-line mode (CLI) with JSON/CSV export
 - **13 Analysis Views**, covering the full attack surface from processes to memory
 - **AI-Powered Analysis**: Claude API (English) / MiniMax (Chinese) for intelligent threat assessment
-- **Embedded Web UI**, automatically opens a browser, no additional GUI framework needed
 - **Full bilingual support** — UI, 400+ detection rules, risk reasons, behavior chains, and all backend output fully translated in both Chinese and English
 
 ---
 
 ## Quick Start
 
+### GUI Mode (Default)
+
 ```
-# Run directly
+# Run directly — browser opens automatically
 procir.exe
 
 # With YARA rules
@@ -53,6 +55,43 @@ procir.exe -yara C:\yara-rules\
 ```
 
 After launching, the browser opens automatically. Click "Start Scan" and wait a few seconds for results.
+
+### CLI Mode (Pure Command Line)
+
+No GUI required — scan and export data directly. Ideal for automation scripts, remote SSH sessions, or headless environments.
+
+```bash
+# Scan and export as JSON (default format)
+procir.exe -cli -o result.json
+
+# Scan and export as CSV
+procir.exe -cli -o result.csv -format csv
+
+# Scan with YARA rules, export full results
+procir.exe -cli -yara ./rules -o scan.json
+
+# Export only YARA-matched results
+procir.exe -cli -yara ./rules -yara-export -o yara_hits.json
+
+# Auto-generate timestamped filename
+procir.exe -cli
+```
+
+**CLI Flags:**
+
+| Flag | Description |
+|------|-------------|
+| `-cli` | Enable CLI mode (no GUI) |
+| `-o <path>` | Output file path |
+| `-format json\|csv` | Export format, default json |
+| `-yara <path>` | YARA rules file or directory |
+| `-yara-export` | Export only YARA-matched results |
+
+**Export Content:**
+
+- **JSON full export**: ExecObjects, Processes, Triggers, Forensics, Events, Modules, Timeline, BehaviorChains, Indicators + Summary statistics
+- **CSV full export**: ExecObjects with 27 key columns (including YARA columns)
+- **YARA-only export**: Only YARA-matched objects with rule names, tags, and match scores
 
 ---
 
@@ -343,6 +382,7 @@ procir/
 │   ├── rules/                   # Process scoring engine
 │   ├── fusion/                  # Fusion engine
 │   ├── scoring/                 # Scan orchestrator
+│   ├── export/                  # CLI export engine (JSON/CSV)
 │   ├── timeline/                # Timeline engine
 │   ├── behavior/                # Behavior chain identification
 │   ├── indicator/               # IOC extraction
@@ -352,7 +392,7 @@ procir/
 └── go.mod
 ```
 
-**52 Go source files, 11,700+ lines of code, 11MB compiled binary, only external dependency: `golang.org/x/sys`.**
+**55+ Go source files, 12,000+ lines of code, 11MB compiled binary, only external dependency: `golang.org/x/sys`.**
 
 ---
 

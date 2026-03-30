@@ -31,17 +31,19 @@ ProcIR 是一个**非常驻、非 Agent、纯本地**的 Windows 应急响应排
 - **纯 Go 实现**，无 CGO，拷贝即用
 - **非常驻**，扫描完就退，不影响业务
 - **不联网**，所有分析纯本地完成（AI 分析功能除外，需联网调用 API）
+- **双模式运行**：内嵌 Web UI（GUI）+ 纯命令行模式（CLI），支持 JSON/CSV 导出
 - **13 个分析视图**，覆盖从进程到内存的完整攻击面
 - **AI 智能分析**，中文 MiniMax / 英文 Claude，一键将扫描结果交给 AI 研判
-- **内嵌 Web UI**，自动打开浏览器，无需额外装 GUI 框架
 - **中英文全量双语**，UI + 后端 400+ 条检测规则/风险原因全部支持中英文切换
 
 ---
 
 ## 快速开始
 
+### GUI 模式（默认）
+
 ```
-# 直接运行
+# 直接运行，自动打开浏览器
 procir.exe
 
 # 带 YARA 规则
@@ -50,6 +52,43 @@ procir.exe -yara C:\yara-rules\
 ```
 
 运行后自动打开浏览器，点「开始扫描」，等待数秒即可看到结果。
+
+### CLI 模式（纯命令行）
+
+无需 GUI，扫描完成后直接导出数据文件，适合自动化脚本、远程 SSH、无桌面环境等场景。
+
+```bash
+# 扫描并导出 JSON（默认格式）
+procir.exe -cli -o result.json
+
+# 扫描并导出 CSV
+procir.exe -cli -o result.csv -format csv
+
+# 加载 YARA 规则扫描，导出全量结果
+procir.exe -cli -yara ./rules -o scan.json
+
+# 仅导出 YARA 匹配结果
+procir.exe -cli -yara ./rules -yara-export -o yara_hits.json
+
+# 不指定 -o，自动生成带时间戳的文件名
+procir.exe -cli
+```
+
+**CLI 参数：**
+
+| 参数 | 说明 |
+|------|------|
+| `-cli` | 启用 CLI 模式（不启动 GUI） |
+| `-o <path>` | 指定导出文件路径 |
+| `-format json\|csv` | 导出格式，默认 json |
+| `-yara <path>` | YARA 规则文件或目录 |
+| `-yara-export` | 仅导出 YARA 匹配结果 |
+
+**导出内容：**
+
+- **JSON 全量导出**：ExecObjects、Processes、Triggers、Forensics、Events、Modules、Timeline、BehaviorChains、Indicators + Summary 统计
+- **CSV 全量导出**：ExecObjects 27 列关键字段（含 YARA 列）
+- **YARA 专项导出**：仅 YARA 命中对象，含规则名、标签、匹配分数
 
 ---
 
@@ -326,6 +365,7 @@ procir/
 │   ├── rules/                   # 进程评分引擎
 │   ├── fusion/                  # 融合引擎
 │   ├── scoring/                 # 扫描编排器
+│   ├── export/                  # CLI 导出引擎（JSON/CSV）
 │   ├── timeline/                # 时间线引擎
 │   ├── behavior/                # 行为链识别
 │   ├── indicator/               # IOC 提取
@@ -335,7 +375,7 @@ procir/
 └── go.mod
 ```
 
-**52 个 Go 源文件，11,700+ 行代码，编译产物 11MB，外部依赖仅 `golang.org/x/sys`。**
+**55+ 个 Go 源文件，12,000+ 行代码，编译产物 11MB，外部依赖仅 `golang.org/x/sys`。**
 
 ---
 

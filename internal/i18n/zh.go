@@ -376,6 +376,17 @@ var zh = map[string]string{
 	"cli_yara_loaded":          "YARA 已加载: %d 条规则 (%s)",
 	"cli_warning":              "警告: %s",
 	"cli_yara_fail":            "YARA 规则加载失败: %s",
+	"cli_yara_required":        "错误: YARA导出模式需要先加载YARA规则 (-yara 参数)",
+	"cli_scan_start":           "[*] 正在扫描系统...",
+	"cli_scan_progress":        "进程分析中 %d/%d",
+	"cli_scan_done":            "[+] 扫描完成 (耗时 %.1f 秒)",
+	"cli_scan_summary":         "[+] 扫描结果: %d 个执行对象, %d 个进程, %d 个触发器, %d 个取证痕迹, %d 条事件, %d 个模块",
+	"cli_risk_summary":         "    风险分布: Critical=%d  High=%d  Medium=%d  Suspicious=%d",
+	"cli_yara_summary":         "    YARA: %d 条规则, %d 个匹配",
+	"cli_correlation_summary":  "    关联: %d 条行为链, %d 个IOC, %d 条时间线事件",
+	"cli_exporting":            "[*] 正在导出到 %s ...",
+	"cli_export_fail":          "[-] 导出失败: %v",
+	"cli_export_done":          "[+] 导出成功: %s (%s)",
 
 	// === New P0/P1 rules ===
 

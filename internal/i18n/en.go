@@ -375,6 +375,17 @@ var en = map[string]string{
 	"cli_yara_loaded":          "YARA loaded: %d rules (%s)",
 	"cli_warning":              "Warning: %s",
 	"cli_yara_fail":            "YARA rules loading failed: %s",
+	"cli_yara_required":        "Error: YARA export mode requires YARA rules (-yara flag)",
+	"cli_scan_start":           "[*] Scanning system...",
+	"cli_scan_progress":        "Analyzing processes %d/%d",
+	"cli_scan_done":            "[+] Scan complete (%.1f seconds)",
+	"cli_scan_summary":         "[+] Results: %d exec objects, %d processes, %d triggers, %d forensics, %d events, %d modules",
+	"cli_risk_summary":         "    Risk: Critical=%d  High=%d  Medium=%d  Suspicious=%d",
+	"cli_yara_summary":         "    YARA: %d rules, %d matches",
+	"cli_correlation_summary":  "    Correlation: %d behavior chains, %d IOCs, %d timeline events",
+	"cli_exporting":            "[*] Exporting to %s ...",
+	"cli_export_fail":          "[-] Export failed: %v",
+	"cli_export_done":          "[+] Export success: %s (%s)",
 
 	// === New P0/P1 rules ===
 

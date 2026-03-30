@@ -1,81 +1,63 @@
-## ProcIR v1.4.0 - Windows 应急响应进程排查工具
+## ProcIR v1.5.0 - Windows 应急响应进程排查工具
 
 面向安全工程师的一键式应急响应工具，快速定位木马、后门、持久化、白加黑、内存注入等威胁。
 
-### v1.4.0 — 规则体系全面增强
+### v1.5.0 — 新增 CLI 模式 & 数据导出
 
-本次更新对检测规则体系进行系统性优化，新增 40+ 条规则，覆盖高价值攻击链盲区，同时强化误报控制。
+本次更新新增纯命令行运行模式，支持无 GUI 环境下的自动化扫描与数据导出，同时支持 YARA 扫描结果独立导出。
 
-#### LOLBin 扩充与分级
+#### CLI 模式（纯命令行）
 
-- **新增 12 个 LOLBin**：bash.exe / wsl.exe / finger.exe / ftp.exe / curl.exe / tar.exe / control.exe / pktmon.exe / replace.exe / ie4uinit.exe / msxsl.exe / diantz.exe
-- **三级风险分级**：低风险(+8) / 中风险(+12) / 高风险(+18)，替代原有统一 +12 评分
-- 总计 52 个 LOLBin 覆盖
+- **无需 GUI**：`-cli` 参数启动纯命令行模式，扫描完成后直接导出数据文件
+- **适用场景**：自动化脚本、远程 SSH、无桌面环境、批量扫描、SIEM 集成
+- **实时进度**：扫描过程中显示进程分析进度和耗时
+- **扫描摘要**：完成后输出风险分布统计、YARA 匹配数、行为链/IOC/时间线汇总
 
-#### AMSI / Defender 绕过检测（新增）
+#### 数据导出
 
-- 命令行检测：`amsiinitfailed` / `amsiutils` → +30
-- Defender 排除项篡改：`Set-MpPreference -ExclusionPath` / `-DisableRealtimeMonitoring` → +25
-- PowerShell 4104 脚本块同步检测
-- **强规则**：AMSI 绕过 + 下载/IEX → 最低 80 (Critical)
-- **新行为链**：AMSI/Defender 绕过链 (+25~35)
+- **JSON 全量导出**：ExecutionObjects、Processes、Triggers、Forensics、Events、Modules、Timeline、BehaviorChains、Indicators，附带 Summary 统计
+- **CSV 全量导出**：ExecutionObjects 27 列关键字段，含 YARA 匹配状态和评分
+- **YARA 专项导出**：`-yara-export` 参数仅导出 YARA 命中对象，含规则名、标签、匹配分数
+- **自动文件名**：不指定 `-o` 时自动生成带时间戳的文件名
 
-#### LSASS / 凭证访问检测（新增）
+#### CLI 参数
 
-- 命令行关键词：sekurlsa / minidump / comsvcs.dll / procdump+lsass / nanodump / dumpert / pypykatz / handlekatz → +35
-- **强规则**：LSASS 转储 → 最低 80 (Critical)
-- Sysmon Event ID 10 (ProcessAccess)：访问 LSASS → +30
-- Sysmon Event ID 8 (CreateRemoteThread)：远程线程 → +25，注入 LSASS → +45
-- **新行为链**：凭证获取链 (+35~40)
+| 参数 | 说明 |
+|------|------|
+| `-cli` | 启用 CLI 模式（不启动 GUI） |
+| `-o <path>` | 指定导出文件路径 |
+| `-format json\|csv` | 导出格式，默认 json |
+| `-yara <path>` | YARA 规则文件或目录 |
+| `-yara-export` | 仅导出 YARA 匹配结果 |
 
-#### .NET 无文件攻击检测（新增）
+#### 使用示例
 
-- Assembly.Load / Add-Type / AppDomain / CodeDom.Compiler → +25
-- csc.exe / vbc.exe 可疑编译 → +20
-- PowerShell 4104 脚本块中 .NET 反射 → +25
+```bash
+# 全量扫描导出 JSON
+procir.exe -cli -o result.json
 
-#### 横向移动检测（新增）
+# 全量扫描导出 CSV
+procir.exe -cli -o result.csv -format csv
 
-- WMIC 远程进程创建 (`process call create`) → +25
-- 远程计划任务 (`schtasks /create /s`) → +25
-- 远程服务创建 (`sc \\host create`) → +25
-- PsExec / WinRS / Enter-PSSession → +30
-- **新行为链**：横向移动链 (+30)
+# 加载 YARA 规则，仅导出匹配结果
+procir.exe -cli -yara ./rules -yara-export -o yara_hits.json
 
-#### Sysmon 事件覆盖扩展
+# 自动生成文件名
+procir.exe -cli
+```
 
-- **新增 Event ID 8**：CreateRemoteThread → +25，目标 LSASS → +20
-- **新增 Event ID 10**：ProcessAccess → LSASS +30
-- **新增 Event ID 17/18**：命名管道 → 可疑管道名 (postex/meterpreter/cobalt/beacon/psexec) → +25
-- **新增 Event ID 4703**：高危令牌权限调整 (SeDebugPrivilege 等) → +20
+#### 其他改进
 
-#### 浏览器/Electron 误报控制
-
-- 新增 15 个已知 Electron 应用白名单 (VS Code / Teams / Slack / Discord 等)
-- Electron 应用不再触发「浏览器→系统工具」规则
-- 已签名 Electron 应用 + 可信路径：-10 降权
-
-#### 评分体系优化
-
-- **上下文权重封顶**：命令行乘数上限 +25，父子链乘数上限 +15（防止分数膨胀）
-- **融合引擎增强**：
-  - 用户目录 + 事件 + 触发器：+20
-  - DLL 劫持 + YARA + 外联：最低 80 (Critical)
-  - **反证机制**：可信签名 + 可信路径 + 无任何异常证据 → 分数封顶 20 (Suspicious)
-
-#### 新增行为链（3 条，总计 9 条）
-
-| 攻击链 | 分值 | 模式 |
-|--------|------|------|
-| 凭证获取链 | +35~40 | LSASS/Dump 工具 + 特权 + 外联 |
-| AMSI/Defender 绕过链 | +25~35 | AMSI bypass + 下载/IEX |
-| 横向移动链 | +30 | WMIC/PsExec/WinRS/远程任务/远程服务 |
+- 新增 `internal/export` 包，统一处理 CLI 和未来的 API 数据导出
+- 新增 13 条中英文 CLI 提示消息（i18n 双语）
+- 项目代码量增至 55+ Go 源文件，12,000+ 行
 
 ---
 
 ### 使用
 
 ```
-procir.exe                    # 直接运行
-procir.exe -yara rules.yar   # 带 YARA 规则
+procir.exe                    # GUI 模式（默认）
+procir.exe -yara rules.yar   # GUI 模式 + YARA 规则
+procir.exe -cli -o scan.json # CLI 模式，导出 JSON
 ```
