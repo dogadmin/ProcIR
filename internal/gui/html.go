@@ -1368,7 +1368,7 @@ function renderIOC() {
   tbody.innerHTML=''; tbody.appendChild(f);
 }
 
-function sel(i) { selIdx=i; document.querySelectorAll('.view-panel.active tr').forEach((tr,idx)=>tr.classList.toggle('selected',idx===i)); }
+function sel(i) { selIdx=i; document.querySelectorAll('.view-panel.active tbody tr').forEach((tr,idx)=>tr.classList.toggle('selected',idx===i)); }
 function getSelProc() { return selIdx>=0 && selIdx<filtProc.length ? filtProc[selIdx] : null; }
 function getSelTrig() { return selIdx>=0 && selIdx<filtTrig.length ? filtTrig[selIdx] : null; }
 function getSelExec() { return selIdx>=0 && selIdx<filtExec.length ? filtExec[selIdx] : null; }
